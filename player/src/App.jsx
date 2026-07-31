@@ -49,14 +49,16 @@ export default function App() {
   const resolveMediaUrl = useCallback((item) => {
     const rawUrl = item?.url || '';
     if (!rawUrl) return '';
-    if (!rawUrl.startsWith('http')) return `${API_URL}${rawUrl}`;
-    try {
-      const parsed = new URL(rawUrl);
-      if (parsed.pathname.startsWith('/uploads/')) return `${API_URL}${parsed.pathname}`;
-      return rawUrl;
-    } catch {
-      return rawUrl;
-    }
+    
+    // Si ya es una URL completa de Cloudflare R2 o cualquier HTTPS, mantenerla intacta
+    if (rawUrl.startsWith('https://')) return rawUrl;
+    if (rawUrl.startsWith('http://')) return rawUrl;
+    
+    // Si es una ruta relativa local (/uploads/...), convertir a URL completa del backend
+    if (rawUrl.startsWith('/uploads/')) return `${API_URL}${rawUrl}`;
+    
+    // Cualquier otro caso relativo, agregar API_URL
+    return `${API_URL}${rawUrl}`;
   }, []);
 
   // Devuelve el blob URL local si está pre-descargado, o la URL remota como fallback.

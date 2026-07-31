@@ -1,28 +1,59 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
+import useMediaFilters from '../hooks/useMediaFilters';
+import CompanySelector from '../components/admin/CompanySelector';
+import FilterBar from '../components/ui/FilterBar';
+import Select from '../components/ui/Select';
 
 export default function MediaPage() {
   const [media, setMedia] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
+  
+  const {
+    selectedCompanyId,
+    setSelectedCompanyId,
+    mimeType,
+    setMimeType,
+    buildQueryParams,
+    getUploadCompanyId,
+    isSuperAdmin,
+  } = useMediaFilters();
 
-  useEffect(() => { loadMedia(); }, []);
+  useEffect(() => { loadMedia(); }, [selectedCompanyId, mimeType]);
 
   async function loadMedia() {
     try {
-      const { data } = await api.get('/media');
+      const queryString = buildQueryParams();
+      const url = queryString ? `/media?${queryString}` : '/media';
+      const { data } = await api.get(url);
       setMedia(data);
-    } catch { toast.error('Error cargando media'); }
+    } catch { 
+      toast.error('Error cargando media'); 
+    }
   }
 
   async function uploadFiles(files) {
     if (!files || files.length === 0) return;
+
+    const uploadCompanyId = getUploadCompanyId();
+    
+    if (isSuperAdmin && !uploadCompanyId) {
+      toast.error('Selecciona una empresa antes de subir archivos');
+      return;
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
       Array.from(files).forEach((f) => formData.append('files', f));
+      
+      if (uploadCompanyId) {
+        formData.append('company_id', uploadCompanyId);
+      }
+      
       await api.post('/media/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -59,6 +90,38 @@ export default function MediaPage() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Media</h2>
+
+      {isSuperAdmin && (
+        <FilterBar>
+          <CompanySelector
+            value={selectedCompanyId}
+            onChange={setSelectedCompanyId}
+            includeAllOption={true}
+            allOptionLabel="Todas las empresas"
+            label="Filtrar por empresa"
+            className="flex-1 min-w-[200px]"
+          />
+          <Select
+            value={mimeType}
+            onChange={setMimeType}
+            options={[
+              { value: 'image', label: 'Solo imágenes' },
+              { value: 'video', label: 'Solo videos' },
+            ]}
+            placeholder="Todos los tipos"
+            label="Tipo de archivo"
+            className="flex-1 min-w-[180px]"
+          />
+        </FilterBar>
+      )}
+
+      {isSuperAdmin && selectedCompanyId === 'all' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-yellow-800">
+            <strong>Nota:</strong> Selecciona una empresa específica para poder subir archivos.
+          </p>
+        </div>
+      )}
 
       <div
         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}

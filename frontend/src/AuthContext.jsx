@@ -5,18 +5,26 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('user');
+      return saved && saved !== 'undefined' ? JSON.parse(saved) : null;
+    } catch {
+      localStorage.removeItem('user');
+      return null;
+    }
   });
 
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => {
+    const saved = localStorage.getItem('token');
+    return saved && saved !== 'undefined' ? saved : null;
+  });
 
   const login = useCallback(async (username, password) => {
     const { data } = await api.post('/auth/login', { username, password });
     localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.setItem('user', JSON.stringify(data.company || data.user));
     setToken(data.token);
-    setUser(data.user);
+    setUser(data.company || data.user);
     return data;
   }, []);
 

@@ -5,6 +5,8 @@ const path = require('path');
 const { Op } = require('sequelize');
 const sequelize = require('./database');
 const { setupMQTT } = require('./services/mqtt');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 require('./models');
 
 const app = express();
@@ -19,10 +21,19 @@ app.use(express.json());
 const uploadDir = path.resolve(__dirname, '..', process.env.UPLOAD_DIR || './uploads');
 app.use('/uploads', express.static(uploadDir));
 
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Digital Signage API',
+}));
+
+// Rutas de la API
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/companies', require('./routes/companies'));
 app.use('/api/venues', require('./routes/venues'));
 app.use('/api/screens', require('./routes/screens'));
 app.use('/api/media', require('./routes/media'));
+app.use('/api/audit', require('./routes/audit'));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

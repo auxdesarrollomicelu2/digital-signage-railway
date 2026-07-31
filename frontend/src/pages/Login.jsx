@@ -2,6 +2,132 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import toast from 'react-hot-toast';
+import { User, Lock } from 'lucide-react';
+
+// Import new Versat UI components
+import LoginLayout from '../components/auth/LoginLayout';
+import LoginCard from '../components/auth/LoginCard';
+import FormHeader from '../components/auth/FormHeader';
+import Logo from '../components/ui/Logo';
+import Input from '../components/ui/Input';
+import PasswordInput from '../components/ui/PasswordInput';
+import Button from '../components/ui/Button';
+
+export default function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    navigate('/', { replace: true });
+  }, [isAuthenticated, navigate]);
+
+  if (isAuthenticated) {
+    return (
+      <LoginLayout>
+        <p className="text-sm text-gray-400">Redirigiendo…</p>
+      </LoginLayout>
+    );
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      await login(username, password);
+      toast.success('Bienvenido');
+      navigate('/');
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Error de conexión';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <LoginLayout>
+      <LoginCard>
+        {/* Logo */}
+        <div className="mb-6 sm:mb-8 md:mb-9 flex justify-center">
+          <Logo size="lg" />
+        </div>
+
+        {/* Header */}
+        <FormHeader
+          title="Bienvenido"
+          subtitle="Ingresa tus credenciales para acceder al sistema"
+        />
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 md:mt-9 space-y-4 sm:space-y-5 md:space-y-5">
+          <Input
+            label="Usuario"
+            type="text"
+            placeholder="Ingresa tu usuario"
+            icon={User}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            error={error && !username ? 'Usuario requerido' : ''}
+            required
+            variant="dark"
+          />
+
+          <PasswordInput
+            label="Contraseña"
+            placeholder="Ingresa tu contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={error && !password ? 'Contraseña requerida' : ''}
+            required
+            autoComplete="current-password"
+            variant="dark"
+          />
+
+          {/* Submit Button */}
+          <div className="pt-2 md:pt-3">
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
+            >
+              {loading ? 'Ingresando...' : 'Iniciar Sesión'}
+            </Button>
+          </div>
+        </form>
+
+        {/* Demo Credentials Info */}
+        <div className="mt-6 md:mt-7 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 sm:px-4 sm:py-3 text-center">
+          <p className="text-xs sm:text-sm text-gray-400">
+            Credenciales super admin:{' '}
+            <span className="font-mono text-accent">versat-team</span>
+            {' '}/{' '}
+            <span className="font-mono text-accent">Versat-2620</span>
+          </p>
+        </div>
+      </LoginCard>
+    </LoginLayout>
+  );
+}
+
+/* 
+========================================
+OLD LOGIN CODE (BACKUP - DO NOT DELETE)
+========================================
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -104,3 +230,4 @@ export default function Login() {
     </div>
   );
 }
+*/

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import usePermissions from '../hooks/usePermissions';
 
 const SIDEBAR_KEY = 'ds_sidebar_collapsed';
 
@@ -67,8 +68,24 @@ const navItems = [
   { to: '/media', label: 'Media', Icon: IconMedia },
 ];
 
+// Items exclusivos para Super Admin
+const adminNavItems = [
+  { to: '/admin/companies', label: 'Empresas', Icon: IconVenues, adminOnly: true },
+  { 
+    to: '/admin/audit', 
+    label: 'Auditoría', 
+    Icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+      </svg>
+    ), 
+    adminOnly: true 
+  },
+];
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
+  const { isSuperAdmin } = usePermissions();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -125,11 +142,45 @@ export default function Layout({ children }) {
         </div>
 
         <nav className={`flex-1 space-y-0.5 overflow-y-auto ${collapsed ? 'px-1 py-2' : 'px-2 py-2'}`}>
+          {/* Items comunes para todos los roles */}
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                `flex items-center rounded-lg text-sm font-medium transition-colors ${
+                  collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-2.5 py-2'
+                } ${
+                  isActive
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`
+              }
+            >
+              <item.Icon className={`shrink-0 ${collapsed ? 'h-5 w-5' : 'h-[18px] w-[18px] opacity-90'}`} />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+            </NavLink>
+          ))}
+
+          {/* Separador si es super admin */}
+          {isSuperAdmin && (
+            <div className={`${collapsed ? 'px-1 py-2' : 'px-2 py-2'}`}>
+              <div className="border-t border-gray-800"></div>
+              {!collapsed && (
+                <p className="mt-3 mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  Administración
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Items exclusivos para Super Admin */}
+          {isSuperAdmin && adminNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
               title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center rounded-lg text-sm font-medium transition-colors ${

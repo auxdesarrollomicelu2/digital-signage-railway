@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
+import useVenueFilters from '../hooks/useVenueFilters';
+import CompanySelector from '../components/admin/CompanySelector';
+import FilterBar from '../components/ui/FilterBar';
+import Input from '../components/ui/Input';
 
 export default function Venues() {
   const [venues, setVenues] = useState([]);
@@ -8,13 +12,26 @@ export default function Venues() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', address: '', description: '' });
 
-  useEffect(() => { loadVenues(); }, []);
+  const {
+    selectedCompanyId,
+    setSelectedCompanyId,
+    searchTerm,
+    setSearchTerm,
+    buildQueryParams,
+    isSuperAdmin,
+  } = useVenueFilters();
+
+  useEffect(() => { loadVenues(); }, [selectedCompanyId, searchTerm]);
 
   async function loadVenues() {
     try {
-      const { data } = await api.get('/venues');
+      const queryString = buildQueryParams();
+      const url = queryString ? `/venues?${queryString}` : '/venues';
+      const { data } = await api.get(url);
       setVenues(data);
-    } catch { toast.error('Error cargando sedes'); }
+    } catch { 
+      toast.error('Error cargando sedes'); 
+    }
   }
 
   function openCreate() {
@@ -63,6 +80,26 @@ export default function Venues() {
           + Nueva Sede
         </button>
       </div>
+
+      <FilterBar>
+        {isSuperAdmin && (
+          <CompanySelector
+            value={selectedCompanyId}
+            onChange={setSelectedCompanyId}
+            includeAllOption={true}
+            allOptionLabel="Todas las empresas"
+            label="Empresa"
+            className="flex-1 min-w-[200px]"
+          />
+        )}
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Buscar por nombre o dirección"
+          label="Buscar"
+          className="flex-1 min-w-[250px]"
+        />
+      </FilterBar>
 
       {venues.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center border border-gray-100">

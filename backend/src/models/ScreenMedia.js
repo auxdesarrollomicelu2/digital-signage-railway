@@ -6,6 +6,9 @@ const ScreenMedia = sequelize.define('ScreenMedia', {
   media_id:  { type: DataTypes.INTEGER, allowNull: false },
   duration:  { type: DataTypes.INTEGER, defaultValue: 10 },
   position:  { type: DataTypes.INTEGER, defaultValue: 0 },
+}, {
+  schema: 'digital_signage',
+  tableName: 'ScreenMedia'
 });
 
 module.exports = ScreenMedia;

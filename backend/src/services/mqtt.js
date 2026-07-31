@@ -1,13 +1,69 @@
-const Aedes = require('aedes');
-const { createServer: createTcpServer } = require('net');
-const http = require('http');
-const ws = require('websocket-stream');
 const mqtt = require('mqtt');
 
 let client = null;
 let aedesInstance = null;
 
 function setupMQTT() {
+  const useExternalBroker = process.env.USE_EXTERNAL_MQTT === 'true';
+  
+  if (useExternalBroker) {
+    console.log('[MQTT] Modo: BROKER EXTERNO (EMQX)');
+    return setupExternalBroker();
+  } else {
+    console.log('[MQTT] Modo: BROKER EMBEBIDO (Aedes - Legacy)');
+    return setupEmbeddedBroker();
+  }
+}
+
+function setupExternalBroker() {
+  const brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883';
+  
+  client = mqtt.connect(brokerUrl, {
+    clientId: `backend_${Date.now()}`,
+    clean: true,
+    reconnectPeriod: 5000,
+    connectTimeout: 30000,
+  });
+
+  client.on('connect', () => {
+    console.log(`[MQTT] Conectado a broker externo: ${brokerUrl}`);
+    client.subscribe('signage/+/heartbeat', { qos: 1 }, (err) => {
+      if (err) {
+        console.error('[MQTT] Error en suscripción:', err);
+      } else {
+        console.log('[MQTT] Suscrito a signage/+/heartbeat');
+      }
+    });
+  });
+
+  client.on('message', (topic, message) => {
+    const match = topic.match(/^signage\/(.+)\/heartbeat$/);
+    if (match) {
+      handleHeartbeat(match[1]);
+    }
+  });
+
+  client.on('error', (err) => {
+    console.error('[MQTT] Error de conexión:', err.message);
+  });
+
+  client.on('offline', () => {
+    console.warn('[MQTT] Desconectado del broker');
+  });
+
+  client.on('reconnect', () => {
+    console.log('[MQTT] Reconectando al broker...');
+  });
+
+  return client;
+}
+
+function setupEmbeddedBroker() {
+  const Aedes = require('aedes');
+  const { createServer: createTcpServer } = require('net');
+  const http = require('http');
+  const ws = require('websocket-stream');
+
   aedesInstance = Aedes();
 
   const tcpPort = parseInt(process.env.MQTT_TCP_PORT || '1883');

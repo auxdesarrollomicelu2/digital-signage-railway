@@ -7,6 +7,9 @@ const Screen = sequelize.define('Screen', {
   orientation: { type: DataTypes.STRING, defaultValue: 'landscape' },
   status: { type: DataTypes.STRING, defaultValue: 'offline' },
   last_heartbeat: { type: DataTypes.DATE },
+}, {
+  schema: 'digital_signage',
+  tableName: 'Screens'
 });
 
 module.exports = Screen;

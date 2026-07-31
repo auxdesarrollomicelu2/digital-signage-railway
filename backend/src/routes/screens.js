@@ -1,207 +1,378 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { Screen, Venue, Media, ScreenMedia } = require('../models');
-const { publishPlaylist, publishCommand } = require('../services/mqtt');
+const {
+  getPlaylistByDevice,
+  listScreens,
+  getScreen,
+  createScreen,
+  updateScreen,
+  deleteScreen,
+  assignPlaylist,
+  sendCommand,
+} = require('../controllers/screens.controller');
 
-function normalizeMediaUrl(url) {
-  if (!url) return '';
-  if (!String(url).startsWith('http')) return url;
-  try {
-    const parsed = new URL(url);
-    if (parsed.pathname.startsWith('/uploads/')) return parsed.pathname;
-    return url;
-  } catch {
-    return url;
-  }
-}
+/**
+ * @swagger
+ * tags:
+ *   name: Screens
+ *   description: Gestión de pantallas digitales (multi-tenant + MQTT)
+ */
 
-// Endpoint público para que el player pueda resincronizar playlist sin JWT.
-router.get('/by-device/:deviceId/playlist', async (req, res) => {
-  try {
-    const screen = await Screen.findOne({ where: { device_id: req.params.deviceId } });
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
+/**
+ * @swagger
+ * /api/screens/by-device/{deviceId}/playlist:
+ *   get:
+ *     summary: Obtener playlist de una pantalla por device_id (PÚBLICO)
+ *     description: Endpoint público usado por el player para sincronizar su playlist. No requiere autenticación.
+ *     tags: [Screens]
+ *     parameters:
+ *       - in: path
+ *         name: deviceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID único del dispositivo
+ *         example: SCREEN-001
+ *     responses:
+ *       200:
+ *         description: Playlist de la pantalla
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       url:
+ *                         type: string
+ *                         example: /uploads/video.mp4
+ *                       filename:
+ *                         type: string
+ *                         example: video_promocional.mp4
+ *                       mime_type:
+ *                         type: string
+ *                         example: video/mp4
+ *                       size:
+ *                         type: integer
+ *                         example: 10485760
+ *                       duration:
+ *                         type: integer
+ *                         example: 10
+ *                       position:
+ *                         type: integer
+ *                         example: 0
+ *       404:
+ *         description: Pantalla no encontrada
+ */
+router.get('/by-device/:deviceId/playlist', getPlaylistByDevice);
 
-    const rows = await ScreenMedia.findAll({
-      where: { screen_id: screen.id },
-      include: [{ model: Media, as: 'Media' }],
-      order: [['position', 'ASC']],
-    });
-
-    const playlistData = rows
-      .filter((r) => r.Media != null)
-      .map((r) => ({
-        id: r.Media.id,
-        url: normalizeMediaUrl(r.Media.url),
-        filename: r.Media.original_name,
-        mime_type: r.Media.mime_type,
-        size: r.Media.size,
-        duration: r.duration,
-        position: r.position,
-      }));
-
-    res.json({ items: playlistData });
-  } catch (err) {
-    console.error('[screens GET /by-device/:deviceId/playlist]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
+// Rutas protegidas (requieren autenticación)
 router.use(auth);
 
-router.get('/', async (req, res) => {
-  try {
-    const screens = await Screen.findAll({
-      include: [{ model: Venue, as: 'Venue', attributes: ['id', 'name'] }],
-      order: [['createdAt', 'DESC']],
-    });
-    res.json(screens);
-  } catch (err) {
-    console.error('[screens GET /]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens:
+ *   get:
+ *     summary: Listar pantallas
+ *     description: |
+ *       - **Owner**: Ve solo pantallas de sus sedes
+ *       - **Super Admin**: Ve todas las pantallas
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Buscar por nombre o device_id
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [online, offline]
+ *         description: Filtrar por estado
+ *       - in: query
+ *         name: venue_id
+ *         schema:
+ *           type: integer
+ *         description: Filtrar por sede
+ *     responses:
+ *       200:
+ *         description: Lista de pantallas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Screen'
+ */
+router.get('/', listScreens);
 
-router.get('/:id', async (req, res) => {
-  try {
-    const screen = await Screen.findByPk(req.params.id, {
-      include: [
-        { model: Venue, as: 'Venue', attributes: ['id', 'name'] },
-        {
-          model: ScreenMedia,
-          as: 'ScreenMedia',
-          include: [{ model: Media, as: 'Media' }],
-          separate: true,
-          order: [['position', 'ASC']],
-        },
-      ],
-    });
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
-    res.json(screen);
-  } catch (err) {
-    console.error('[screens GET /:id]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens/{id}:
+ *   get:
+ *     summary: Obtener una pantalla por ID
+ *     description: Incluye la playlist actual de la pantalla
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la pantalla
+ *     responses:
+ *       200:
+ *         description: Datos de la pantalla con playlist
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Screen'
+ *       403:
+ *         description: No tienes permiso para ver esta pantalla
+ *       404:
+ *         description: Pantalla no encontrada
+ */
+router.get('/:id', getScreen);
 
-router.post('/', async (req, res) => {
-  try {
-    const screen = await Screen.create(req.body);
-    res.status(201).json(screen);
-  } catch (err) {
-    console.error('[screens POST /]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens:
+ *   post:
+ *     summary: Crear una nueva pantalla
+ *     description: |
+ *       Crea una pantalla en una sede. Debe tener permiso sobre la sede.
+ *       El device_id debe ser único en todo el sistema.
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - device_id
+ *               - venue_id
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Pantalla Recepción
+ *               device_id:
+ *                 type: string
+ *                 example: SCREEN-001
+ *               venue_id:
+ *                 type: integer
+ *                 example: 1
+ *               orientation:
+ *                 type: string
+ *                 enum: [landscape, portrait]
+ *                 default: landscape
+ *                 example: landscape
+ *     responses:
+ *       201:
+ *         description: Pantalla creada exitosamente
+ *       400:
+ *         description: Datos inválidos o device_id/nombre duplicado
+ *       403:
+ *         description: No tienes permiso para crear pantallas en esa sede
+ *       404:
+ *         description: Sede no encontrada
+ */
+router.post('/', createScreen);
 
-router.put('/:id', async (req, res) => {
-  try {
-    const screen = await Screen.findByPk(req.params.id);
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
-    await screen.update(req.body);
-    res.json(screen);
-  } catch (err) {
-    console.error('[screens PUT /:id]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens/{id}:
+ *   put:
+ *     summary: Actualizar una pantalla
+ *     description: Solo puede actualizar pantallas de sus propias sedes
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la pantalla
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Pantalla Recepción Actualizada
+ *               device_id:
+ *                 type: string
+ *                 example: SCREEN-001-NEW
+ *               venue_id:
+ *                 type: integer
+ *                 example: 2
+ *               orientation:
+ *                 type: string
+ *                 enum: [landscape, portrait]
+ *                 example: portrait
+ *     responses:
+ *       200:
+ *         description: Pantalla actualizada exitosamente
+ *       403:
+ *         description: No tienes permiso
+ *       404:
+ *         description: Pantalla no encontrada
+ */
+router.put('/:id', updateScreen);
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const screen = await Screen.findByPk(req.params.id);
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
-    await screen.destroy();
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[screens DELETE /:id]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens/{id}:
+ *   delete:
+ *     summary: Eliminar una pantalla
+ *     description: |
+ *       Elimina la pantalla y su playlist.
+ *       Solo puede eliminar pantallas de sus propias sedes.
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la pantalla
+ *     responses:
+ *       200:
+ *         description: Pantalla eliminada exitosamente
+ *       403:
+ *         description: No tienes permiso
+ *       404:
+ *         description: Pantalla no encontrada
+ */
+router.delete('/:id', deleteScreen);
 
-router.post('/:id/playlist', async (req, res) => {
-  try {
-    const screen = await Screen.findByPk(req.params.id);
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
+/**
+ * @swagger
+ * /api/screens/{id}/playlist:
+ *   post:
+ *     summary: Asignar playlist a una pantalla
+ *     description: |
+ *       Reemplaza la playlist actual con una nueva.
+ *       Publica automáticamente vía MQTT para actualizar el player en tiempo real.
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la pantalla
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - media_id
+ *                   properties:
+ *                     media_id:
+ *                       type: integer
+ *                       example: 1
+ *                     duration:
+ *                       type: integer
+ *                       description: Duración en segundos
+ *                       example: 10
+ *                     position:
+ *                       type: integer
+ *                       description: Orden en la playlist
+ *                       example: 0
+ *     responses:
+ *       200:
+ *         description: Playlist asignada y publicada vía MQTT
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 playlist:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Datos inválidos o media no existe
+ *       403:
+ *         description: No tienes permiso
+ */
+router.post('/:id/playlist', assignPlaylist);
 
-    const { items } = req.body;
-    console.log('[playlist] Recibido:', JSON.stringify(items));
-
-    if (!items || !Array.isArray(items)) {
-      return res.status(400).json({ error: 'items[] requerido' });
-    }
-
-    const sanitized = items
-      .map((item, idx) => ({
-        screen_id: screen.id,
-        media_id:  Number(item.media_id),
-        duration:  Number(item.duration) || 10,
-        position:  item.position === undefined ? idx : Number(item.position),
-      }))
-      .filter((row) => row.media_id && !Number.isNaN(row.media_id));
-
-    console.log('[playlist] Sanitized:', JSON.stringify(sanitized));
-
-    // Verificar que los media_id existen realmente
-    for (const row of sanitized) {
-      const exists = await Media.findByPk(row.media_id);
-      if (!exists) {
-        console.error(`[playlist] Media ${row.media_id} no existe en la base de datos`);
-        return res.status(400).json({ error: `Media con id ${row.media_id} no existe` });
-      }
-    }
-
-    await ScreenMedia.destroy({ where: { screen_id: screen.id } });
-    console.log('[playlist] ScreenMedia eliminados para screen_id', screen.id);
-
-    if (sanitized.length > 0) {
-      await ScreenMedia.bulkCreate(sanitized);
-      console.log('[playlist] bulkCreate OK:', sanitized.length, 'filas');
-    }
-
-    // Verificar lo que quedó guardado
-    const rawRows = await ScreenMedia.findAll({ where: { screen_id: screen.id } });
-    console.log('[playlist] Filas en DB tras bulkCreate:', rawRows.map((r) => r.toJSON()));
-
-    const rows = await ScreenMedia.findAll({
-      where: { screen_id: screen.id },
-      include: [{ model: Media, as: 'Media' }],
-      order: [['position', 'ASC']],
-    });
-
-    console.log('[playlist] Filas con Media:', rows.map((r) => ({
-      id: r.id, screen_id: r.screen_id, media_id: r.media_id, media: r.Media?.id,
-    })));
-
-    const playlistData = rows
-      .filter((r) => r.Media != null)
-      .map((r) => ({
-        id:       r.Media.id,
-        url:      normalizeMediaUrl(r.Media.url),
-        filename: r.Media.original_name,
-        mime_type: r.Media.mime_type,
-        size:      r.Media.size,
-        duration: r.duration,
-        position: r.position,
-      }));
-
-    publishPlaylist(screen.device_id, { items: playlistData });
-
-    res.json({ success: true, playlist: playlistData });
-  } catch (err) {
-    console.error('[playlist] ERROR:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/:id/command', async (req, res) => {
-  try {
-    const screen = await Screen.findByPk(req.params.id);
-    if (!screen) return res.status(404).json({ error: 'Pantalla no encontrada' });
-    publishCommand(screen.device_id, req.body);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[screens command]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+/**
+ * @swagger
+ * /api/screens/{id}/command:
+ *   post:
+ *     summary: Enviar comando MQTT a una pantalla
+ *     description: |
+ *       Envía un comando en tiempo real a la pantalla vía MQTT.
+ *       Comandos comunes: reload, powerOff, powerOn, screenshot, etc.
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la pantalla
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               command:
+ *                 type: string
+ *                 example: reload
+ *               payload:
+ *                 type: object
+ *                 description: Datos adicionales del comando
+ *     responses:
+ *       200:
+ *         description: Comando enviado vía MQTT
+ *       403:
+ *         description: No tienes permiso
+ *       404:
+ *         description: Pantalla no encontrada
+ */
+router.post('/:id/command', sendCommand);
 
 module.exports = router;

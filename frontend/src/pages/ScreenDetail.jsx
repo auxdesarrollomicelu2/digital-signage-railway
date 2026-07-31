@@ -346,7 +346,20 @@ export default function ScreenDetail() {
     return <div className="text-center py-12"><p className="text-gray-500">Pantalla no encontrada</p></div>;
   }
 
-  const playerUrl = `http://20.81.42.176:5174/?device=${screen.device_id}`;
+  // Construir la URL del player dinámicamente
+  const getPlayerUrl = () => {
+    const host = window.location.hostname;
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    
+    // En desarrollo local, usar localhost:5174
+    // En producción, usar el mismo host con puerto 5174
+    const playerHost = isLocalhost ? 'localhost' : host;
+    const playerPort = 5174;
+    
+    return `http://${playerHost}:${playerPort}/?device=${screen.device_id}`;
+  };
+
+  const playerUrl = getPlayerUrl();
 
   async function copyPlayerUrl() {
     try {
@@ -354,6 +367,14 @@ export default function ScreenDetail() {
       toast.success('URL copiada al portapapeles');
     } catch {
       toast.error('No se pudo copiar la URL');
+    }
+  }
+
+  async function openPlayerInNewTab() {
+    try {
+      window.open(playerUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('No se pudo abrir el player');
     }
   }
 
@@ -433,18 +454,30 @@ export default function ScreenDetail() {
           </section>
 
           <section className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-600">URL del player</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">URL del player</h2>
+            <div className="rounded-lg border border-indigo-200 bg-white px-3 py-2.5 mb-3">
+              <p className="font-mono text-[11px] leading-relaxed text-indigo-900/90 break-all">{playerUrl}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={openPlayerInNewTab}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Abrir player
+              </button>
               <button
                 type="button"
                 onClick={copyPlayerUrl}
-                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2 py-1 text-xs font-medium text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50"
               >
                 <IconCopy className="h-3.5 w-3.5" />
                 Copiar
               </button>
             </div>
-            <p className="mt-2 font-mono text-[11px] leading-relaxed text-indigo-900/90 break-all">{playerUrl}</p>
           </section>
         </div>
 

@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
+import useScreenFilters from '../hooks/useScreenFilters';
+import CompanySelector from '../components/admin/CompanySelector';
+import VenueSelector from '../components/admin/VenueSelector';
+import FilterBar from '../components/ui/FilterBar';
+import Select from '../components/ui/Select';
+import Input from '../components/ui/Input';
 
 function IconEye({ className = 'h-4 w-4' }) {
   return (
@@ -35,16 +41,31 @@ export default function Screens() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', device_id: '', venue_id: '', orientation: 'landscape' });
 
+  const {
+    selectedCompanyId,
+    setSelectedCompanyId,
+    selectedVenueId,
+    setSelectedVenueId,
+    selectedStatus,
+    setSelectedStatus,
+    searchTerm,
+    setSearchTerm,
+    buildQueryParams,
+    isSuperAdmin,
+  } = useScreenFilters();
+
   useEffect(() => {
     loadScreens();
     loadVenues();
     const interval = setInterval(loadScreens, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedCompanyId, selectedVenueId, selectedStatus, searchTerm]);
 
   async function loadScreens() {
     try {
-      const { data } = await api.get('/screens');
+      const queryString = buildQueryParams();
+      const url = queryString ? `/screens?${queryString}` : '/screens';
+      const { data } = await api.get(url);
       setScreens(data);
     } catch {
       toast.error('Error cargando pantallas');
@@ -121,6 +142,46 @@ export default function Screens() {
           Nueva pantalla
         </button>
       </div>
+
+      <FilterBar>
+        {isSuperAdmin && (
+          <CompanySelector
+            value={selectedCompanyId}
+            onChange={setSelectedCompanyId}
+            includeAllOption={true}
+            allOptionLabel="Todas las empresas"
+            label="Empresa"
+            className="flex-1 min-w-[200px]"
+          />
+        )}
+        <VenueSelector
+          value={selectedVenueId}
+          onChange={setSelectedVenueId}
+          companyId={isSuperAdmin ? selectedCompanyId : null}
+          includeAllOption={true}
+          allOptionLabel="Todas las sedes"
+          label="Sede"
+          className="flex-1 min-w-[200px]"
+        />
+        <Select
+          value={selectedStatus}
+          onChange={setSelectedStatus}
+          options={[
+            { value: 'online', label: 'En línea' },
+            { value: 'offline', label: 'Fuera de línea' },
+          ]}
+          placeholder="Todos los estados"
+          label="Estado"
+          className="flex-1 min-w-[180px]"
+        />
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Buscar por nombre o device ID"
+          label="Buscar"
+          className="flex-1 min-w-[220px]"
+        />
+      </FilterBar>
 
       {screens.length === 0 ? (
         <div className="rounded-2xl border border-gray-200/80 bg-white px-6 py-14 text-center shadow-sm">
