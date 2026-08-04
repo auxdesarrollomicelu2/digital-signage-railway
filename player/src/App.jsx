@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import mqtt from 'mqtt';
 
 const params = new URLSearchParams(globalThis.location.search);
-const DEVICE_ID = params.get('device') || 'screen-001';
+const DEVICE_ID = params.get('deviceId') || params.get('device') || 'screen-001';
 const HOST = params.get('host') || globalThis.location.hostname || 'localhost';
 const API_PORT = params.get('api_port') || '3000';
 const MQTT_PORT = params.get('mqtt_port') || '8083';
+const MQTT_PATH = params.get('mqtt_path') || '/mqtt';
 const API_URL = `http://${HOST}:${API_PORT}`;
-const MQTT_URL = `ws://${HOST}:${MQTT_PORT}`;
+const MQTT_URL = `ws://${HOST}:${MQTT_PORT}${MQTT_PATH}`;
 const PLAYLIST_API_URL = `${API_URL}/api/screens/by-device/${encodeURIComponent(DEVICE_ID)}/playlist`;
 const PLAYLIST_STORAGE_KEY = `signage:playlist:${DEVICE_ID}`;
 const MEDIA_CACHE_NAME = 'signage-media-v1';
