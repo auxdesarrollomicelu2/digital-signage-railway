@@ -1,5 +1,6 @@
 const { Venue, Screen, Company } = require('../models');
 const { Op } = require('sequelize');
+const { validateVenueData, normalizeVenueData } = require('../utils/validation');
 
 const listVenues = async (filters, userPermissions) => {
   const { search, company_id } = filters;
@@ -78,12 +79,12 @@ const getVenueById = async (venueId, userPermissions) => {
 };
 
 const createVenue = async (venueData, userPermissions) => {
-  const { name, address, description, company_id } = venueData;
-  const { role, companyId } = userPermissions;
+  validateVenueData(venueData, false);
 
-  if (!name || name.trim() === '') {
-    throw new Error('El nombre es obligatorio');
-  }
+  const normalized = normalizeVenueData(venueData);
+  
+  const { name, address, description, company_id } = normalized;
+  const { role, companyId } = userPermissions;
 
   let finalCompanyId;
 
@@ -103,7 +104,7 @@ const createVenue = async (venueData, userPermissions) => {
 
   const existingVenue = await Venue.findOne({
     where: {
-      name: name.trim(),
+      name,
       company_id: finalCompanyId,
     },
   });
@@ -113,7 +114,7 @@ const createVenue = async (venueData, userPermissions) => {
   }
 
   const venue = await Venue.create({
-    name: name.trim(),
+    name,
     address: address || '',
     description: description || '',
     company_id: finalCompanyId,
@@ -136,7 +137,11 @@ const createVenue = async (venueData, userPermissions) => {
 };
 
 const updateVenue = async (venueId, updateData, userPermissions) => {
-  const { name, address, description } = updateData;
+  validateVenueData(updateData, true);
+
+  const normalized = normalizeVenueData(updateData);
+  
+  const { name, address, description } = normalized;
   const { role, companyId } = userPermissions;
 
   const venue = await Venue.findByPk(venueId);
@@ -155,14 +160,10 @@ const updateVenue = async (venueId, updateData, userPermissions) => {
     throw new Error('No tienes permiso para editar esta sede');
   }
 
-  if (name !== undefined) {
-    if (name.trim() === '') {
-      throw new Error('El nombre no puede estar vacío');
-    }
-
+  if (name !== undefined && name !== venue.name) {
     const existingVenue = await Venue.findOne({
       where: {
-        name: name.trim(),
+        name,
         company_id: venue.company_id,
         id: { [Op.ne]: venueId },
       },
@@ -174,7 +175,7 @@ const updateVenue = async (venueId, updateData, userPermissions) => {
   }
 
   const updateFields = {};
-  if (name !== undefined) updateFields.name = name.trim();
+  if (name !== undefined) updateFields.name = name;
   if (address !== undefined) updateFields.address = address;
   if (description !== undefined) updateFields.description = description;
 

@@ -103,7 +103,7 @@ const updateCompany = async (req, res) => {
   } catch (err) {
     console.error('Error al actualizar empresa:', err);
     const statusCode = err.message.includes('no encontrada') ? 404 :
-                       err.message.includes('incorrecta') ? 401 :
+                       err.message.includes('incorrecta') ? 400 :
                        err.message.includes('inválido') || err.message.includes('ya está') ? 400 : 500;
     res.status(statusCode).json({ error: err.message });
   }
