@@ -81,10 +81,16 @@ export default function Screens() {
     }
   }
 
-  function openCreate() {
+  async function openCreate() {
     setEditing(null);
-    setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
     setShowModal(true);
+    
+    try {
+      const { data } = await api.get('/screens/preview-device-id');
+      setForm({ name: '', device_id: data.device_id, venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    } catch (err) {
+      setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    }
   }
 
   function openEdit(screen) {
@@ -310,17 +316,24 @@ export default function Screens() {
                 />
               </div>
               <div>
-                <label htmlFor="screen-form-device" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Device ID *</label>
+                <label htmlFor="screen-form-device" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Device ID *
+                </label>
                 <input
                   id="screen-form-device"
                   type="text"
                   required
                   value={form.device_id}
                   onChange={(e) => setForm({ ...form, device_id: e.target.value })}
-                  placeholder="screen-001"
+                  placeholder={editing ? "" : "Cargando..."}
                   disabled={!!editing}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-gray-50"
                 />
+                {!editing && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Device ID auto-generado. Puedes editarlo si es necesario antes de crear.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="screen-form-venue" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Sede</label>
