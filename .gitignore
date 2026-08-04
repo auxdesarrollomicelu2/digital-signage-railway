@@ -1,0 +1,58 @@
+# Dependencias
+node_modules/
+*/node_modules/
+.cursor/
+
+# Builds
+dist/
+*/dist/
+android/build/
+android/app/build/
+frontend/dist/
+player/dist/
+backend/dist/
+
+# Variables de entorno con secretos
+.env
+backend/.env
+frontend/.env
+player/.env
+.env.local
+.env.production
+.env.*.local
+
+# Base de datos y uploads locales (usamos R2 en producción)
+*.sqlite
+database.sqlite
+backend/database.sqlite
+backend/uploads/
+data/uploads/
+
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Temporary
+tmp/
+temp/
+.cache/
