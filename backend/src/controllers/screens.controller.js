@@ -19,6 +19,22 @@ const getPlaylistByDevice = async (req, res) => {
   }
 };
 
+const previewDeviceId = async (req, res) => {
+  try {
+    const { companyId } = req.user;
+    
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId no encontrado en el token' });
+    }
+    
+    const device_id = await screenService.generateDeviceIdForCompany(companyId);
+    res.json({ device_id });
+  } catch (err) {
+    console.error('[previewDeviceId] Error completo:', err);
+    res.status(500).json({ error: err.message || 'Error generando device_id' });
+  }
+};
+
 const listScreens = async (req, res) => {
   try {
     const screens = await screenService.listScreens(req.query, {
@@ -230,6 +246,7 @@ const sendCommand = async (req, res) => {
 
 module.exports = {
   getPlaylistByDevice,
+  previewDeviceId,
   listScreens,
   getScreen,
   createScreen,

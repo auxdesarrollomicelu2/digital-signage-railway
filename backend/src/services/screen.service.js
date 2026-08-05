@@ -1,5 +1,46 @@
 const { Screen, Venue, Media, ScreenMedia, Company } = require('../models');
 const { Op } = require('sequelize');
+const { validateScreenData, normalizeScreenData } = require('../utils/validation');
+
+async function generateDeviceIdForCompany(companyId) {
+  const screens = await Screen.findAll({
+    include: [{
+      model: Venue,
+      as: 'Venue',
+      where: { company_id: companyId },
+      attributes: []
+    }],
+    where: {
+      device_id: { [Op.like]: `C${companyId}-SCREEN-%` }
+    },
+    order: [['device_id', 'DESC']],
+    limit: 1
+  });
+
+  if (!screens || screens.length === 0) {
+    return `C${companyId}-SCREEN-001`;
+  }
+
+  const lastDeviceId = screens[0].device_id;
+  const match = lastDeviceId.match(/C\d+-SCREEN-(\d+)/);
+  
+  if (!match) {
+    const count = await Screen.count({
+      include: [{
+        model: Venue,
+        as: 'Venue',
+        where: { company_id: companyId },
+        attributes: []
+      }]
+    });
+    return `C${companyId}-SCREEN-${String(count + 1).padStart(3, '0')}`;
+  }
+
+  const currentNumber = parseInt(match[1], 10);
+  const nextNumber = currentNumber + 1;
+  
+  return `C${companyId}-SCREEN-${String(nextNumber).padStart(3, '0')}`;
+}
 
 function normalizeMediaUrl(url) {
   if (!url) return '';
@@ -147,16 +188,8 @@ const getScreenById = async (screenId, userPermissions) => {
 };
 
 const createScreen = async (screenData, userPermissions) => {
-  const { name, device_id, venue_id, orientation = 'landscape' } = screenData;
   const { role, companyId } = userPermissions;
-
-  if (!name || name.trim() === '') {
-    throw new Error('El nombre es obligatorio');
-  }
-
-  if (!device_id || device_id.trim() === '') {
-    throw new Error('El device_id es obligatorio');
-  }
+  let { device_id, venue_id } = screenData;
 
   if (!venue_id) {
     throw new Error('El venue_id es obligatorio');
@@ -171,15 +204,25 @@ const createScreen = async (screenData, userPermissions) => {
     throw new Error('No tienes permiso para crear pantallas en esta sede');
   }
 
-  const existingDevice = await Screen.findOne({ where: { device_id: device_id.trim() } });
+  if (!device_id || device_id.trim() === '') {
+    device_id = await generateDeviceIdForCompany(venue.company_id);
+  }
+
+  validateScreenData({ ...screenData, device_id }, false);
+
+  const normalized = normalizeScreenData({ ...screenData, device_id });
+  
+  const { name, orientation = 'landscape' } = normalized;
+
+  const existingDevice = await Screen.findOne({ where: { device_id } });
   if (existingDevice) {
     throw new Error('Ya existe una pantalla con ese device_id');
   }
 
   const existingName = await Screen.findOne({
     where: {
-      name: name.trim(),
-      venue_id: venue_id,
+      name,
+      venue_id,
     },
   });
 
@@ -188,10 +231,10 @@ const createScreen = async (screenData, userPermissions) => {
   }
 
   const screen = await Screen.create({
-    name: name.trim(),
-    device_id: device_id.trim(),
-    venue_id: venue_id,
-    orientation: orientation,
+    name,
+    device_id,
+    venue_id,
+    orientation,
     status: 'offline',
   });
 
@@ -219,7 +262,11 @@ const createScreen = async (screenData, userPermissions) => {
 };
 
 const updateScreen = async (screenId, updateData, userPermissions) => {
-  const { name, device_id, venue_id, orientation } = updateData;
+  validateScreenData(updateData, true);
+
+  const normalized = normalizeScreenData(updateData);
+  
+  const { name, device_id, venue_id, orientation } = normalized;
   const { role, companyId } = userPermissions;
 
   const screen = await Screen.findByPk(screenId, {
@@ -241,14 +288,10 @@ const updateScreen = async (screenId, updateData, userPermissions) => {
     throw new Error('No tienes permiso para editar esta pantalla');
   }
 
-  if (name !== undefined) {
-    if (name.trim() === '') {
-      throw new Error('El nombre no puede estar vacío');
-    }
-
+  if (name !== undefined && name !== screen.name) {
     const existingName = await Screen.findOne({
       where: {
-        name: name.trim(),
+        name,
         venue_id: screen.venue_id,
         id: { [Op.ne]: screenId },
       },
@@ -259,14 +302,10 @@ const updateScreen = async (screenId, updateData, userPermissions) => {
     }
   }
 
-  if (device_id !== undefined) {
-    if (device_id.trim() === '') {
-      throw new Error('El device_id no puede estar vacío');
-    }
-
+  if (device_id !== undefined && device_id !== screen.device_id) {
     const existingDevice = await Screen.findOne({
       where: {
-        device_id: device_id.trim(),
+        device_id,
         id: { [Op.ne]: screenId },
       },
     });
@@ -276,7 +315,7 @@ const updateScreen = async (screenId, updateData, userPermissions) => {
     }
   }
 
-  if (venue_id !== undefined) {
+  if (venue_id !== undefined && venue_id !== screen.venue_id) {
     const venue = await Venue.findByPk(venue_id);
     if (!venue) {
       throw new Error('Sede no encontrada');
@@ -288,8 +327,8 @@ const updateScreen = async (screenId, updateData, userPermissions) => {
   }
 
   const updateFields = {};
-  if (name !== undefined) updateFields.name = name.trim();
-  if (device_id !== undefined) updateFields.device_id = device_id.trim();
+  if (name !== undefined) updateFields.name = name;
+  if (device_id !== undefined) updateFields.device_id = device_id;
   if (venue_id !== undefined) updateFields.venue_id = venue_id;
   if (orientation !== undefined) updateFields.orientation = orientation;
 
@@ -442,6 +481,7 @@ const validateScreenPermission = async (screenId, userPermissions) => {
 module.exports = {
   normalizeMediaUrl,
   getPlaylistByDeviceId,
+  generateDeviceIdForCompany,
   listScreens,
   getScreenById,
   createScreen,

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const {
   getPlaylistByDevice,
+  previewDeviceId,
   listScreens,
   getScreen,
   createScreen,
@@ -74,6 +75,29 @@ router.get('/by-device/:deviceId/playlist', getPlaylistByDevice);
 
 // Rutas protegidas (requieren autenticación)
 router.use(auth);
+
+/**
+ * @swagger
+ * /api/screens/preview-device-id:
+ *   get:
+ *     summary: Obtener preview del próximo device_id para la empresa del usuario
+ *     description: Retorna el device_id que se generaría automáticamente para una nueva pantalla
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Device ID preview generado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 device_id:
+ *                   type: string
+ *                   example: C1-SCREEN-003
+ */
+router.get('/preview-device-id', previewDeviceId);
 
 /**
  * @swagger

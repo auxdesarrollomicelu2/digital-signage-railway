@@ -140,10 +140,17 @@ export default function Screens() {
     }
   }
 
-  function openCreate() {
+  async function openCreate() {
     setEditing(null);
     setForm({ name: '', device_id: '', venue_id: venues[0]?.id ? String(venues[0].id) : '', orientation: 'landscape' });
     setShowModal(true);
+    
+    try {
+      const { data } = await api.get('/screens/preview-device-id');
+      setForm({ name: '', device_id: data.device_id, venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    } catch (err) {
+      setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    }
   }
 
   function openEdit(screen) {

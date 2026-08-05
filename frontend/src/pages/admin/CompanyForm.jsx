@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '../../api';
 import toast from 'react-hot-toast';
+import useFormValidation from '../../hooks/useFormValidation';
+import { validationRules, normalizers } from '../../utils/validation';
+import Alert from '../../components/ui/Alert';
 
 export default function CompanyFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
 
-  const [form, setForm] = useState({
+  const initialValues = {
     name: '',
     username: '',
     email: '',
@@ -19,12 +22,61 @@ export default function CompanyFormPage() {
     document: '',
     phone: '',
     active: true,
-  });
+  };
+
+  const fieldRules = {
+    name: [
+      (value) => validationRules.required(value, 'Nombre de la empresa')
+    ],
+    username: [
+      (value) => validationRules.required(value, 'Usuario'),
+      validationRules.username,
+      validationRules.noSpaces
+    ],
+    email: [
+      (value) => validationRules.required(value, 'Email'),
+      validationRules.email
+    ],
+    password: isEditing 
+      ? [] 
+      : [
+          (value) => validationRules.required(value, 'Contraseña'),
+          validationRules.minLength(6)
+        ],
+    document_type: [
+      (value) => validationRules.required(value, 'Tipo de documento')
+    ],
+    document: [
+      (value) => validationRules.required(value, 'Número de documento'),
+      validationRules.documentNumber
+    ],
+    phone: [
+      validationRules.phone
+    ]
+  };
+
+  const fieldNormalizers = {
+    email: normalizers.emailFormat,
+    username: normalizers.usernameFormat,
+    document: normalizers.numbersAndHyphens,
+    phone: normalizers.numbersOnly
+  };
+
+  const {
+    values,
+    errors,
+    touched,
+    handleChange,
+    handleBlur,
+    validateAll,
+    setValues
+  } = useFormValidation(initialValues, fieldRules, fieldNormalizers);
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditing);
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   useEffect(() => {
     if (isEditing) {
@@ -36,7 +88,7 @@ export default function CompanyFormPage() {
     try {
       setLoadingData(true);
       const { data } = await api.get(`/companies/${id}`);
-      setForm({
+      setValues({
         name: data.name || '',
         username: data.username || '',
         email: data.email || '',
@@ -58,27 +110,30 @@ export default function CompanyFormPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setFormError(null);
+
+    if (!validateAll()) {
+      setFormError('Por favor corrige los errores en el formulario');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const payload = { ...form };
+      const payload = { ...values };
       
-      // Si estamos editando
       if (isEditing) {
-        // Si se quiere cambiar la contraseña, verificar que se proporcione la actual
         if (payload.password && !payload.currentPassword) {
-          toast.error('Debes proporcionar la contraseña actual para cambiar la contraseña');
+          setFormError('Debes proporcionar la contraseña actual para cambiar la contraseña');
           setLoading(false);
           return;
         }
         
-        // Si no se cambió la password, no la enviamos
         if (!payload.password) {
           delete payload.password;
           delete payload.currentPassword;
         }
       } else {
-        // Al crear, no necesitamos currentPassword
         delete payload.currentPassword;
       }
 
@@ -92,8 +147,7 @@ export default function CompanyFormPage() {
 
       navigate('/admin/companies');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error guardando empresa');
-      console.error('Error saving company:', err);
+      setFormError(err.response?.data?.error || 'Error guardando empresa');
     } finally {
       setLoading(false);
     }
@@ -155,6 +209,16 @@ export default function CompanyFormPage() {
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Error general del formulario */}
+        {formError && (
+          <Alert
+            type="error"
+            title="Error en el formulario"
+            message={formError}
+            onClose={() => setFormError(null)}
+          />
+        )}
+
         {/* Información básica */}
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
@@ -177,24 +241,37 @@ export default function CompanyFormPage() {
                 <input
                   id="company-name"
                   type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  value={values.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  onBlur={() => handleBlur('name')}
                   placeholder="Ej: Mi Empresa S.A.S"
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+                    errors.name && touched.name
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 />
+                {errors.name && touched.name && (
+                  <p className="mt-2 text-xs text-red-600">{errors.name}</p>
+                )}
               </div>
 
               {/* Tipo de documento */}
+              {/* Tipo de documento */}
               <div>
                 <label htmlFor="company-doc-type" className="mb-2 block text-sm font-semibold text-gray-700">
-                  Tipo de Documento
+                  Tipo de Documento <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="company-doc-type"
-                  value={form.document_type}
-                  onChange={(e) => setForm({ ...form, document_type: e.target.value })}
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                  value={values.document_type}
+                  onChange={(e) => handleChange('document_type', e.target.value)}
+                  onBlur={() => handleBlur('document_type')}
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:bg-white focus:ring-4 ${
+                    errors.document_type && touched.document_type
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 >
                   <option value="">Seleccionar...</option>
                   <option value="NIT">NIT</option>
@@ -202,21 +279,32 @@ export default function CompanyFormPage() {
                   <option value="CE">Cédula de Extranjería</option>
                   <option value="RUT">RUT</option>
                 </select>
+                {errors.document_type && touched.document_type && (
+                  <p className="mt-2 text-xs text-red-600">{errors.document_type}</p>
+                )}
               </div>
 
               {/* Número de documento */}
               <div>
                 <label htmlFor="company-doc" className="mb-2 block text-sm font-semibold text-gray-700">
-                  Número de Documento
+                  Número de Documento <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="company-doc"
                   type="text"
-                  value={form.document}
-                  onChange={(e) => setForm({ ...form, document: e.target.value })}
+                  value={values.document}
+                  onChange={(e) => handleChange('document', e.target.value)}
+                  onBlur={() => handleBlur('document')}
                   placeholder="Ej: 900123456-7"
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+                    errors.document && touched.document
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 />
+                {errors.document && touched.document && (
+                  <p className="mt-2 text-xs text-red-600">{errors.document}</p>
+                )}
               </div>
 
               {/* Email */}
@@ -227,12 +315,19 @@ export default function CompanyFormPage() {
                 <input
                   id="company-email"
                   type="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  value={values.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  onBlur={() => handleBlur('email')}
                   placeholder="contacto@empresa.com"
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+                    errors.email && touched.email
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 />
+                {errors.email && touched.email && (
+                  <p className="mt-2 text-xs text-red-600">{errors.email}</p>
+                )}
               </div>
 
               {/* Teléfono */}
@@ -243,11 +338,19 @@ export default function CompanyFormPage() {
                 <input
                   id="company-phone"
                   type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="+57 300 123 4567"
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                  value={values.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  onBlur={() => handleBlur('phone')}
+                  placeholder="3001234567"
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+                    errors.phone && touched.phone
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 />
+                {errors.phone && touched.phone && (
+                  <p className="mt-2 text-xs text-red-600">{errors.phone}</p>
+                )}
               </div>
             </div>
           </div>
@@ -275,13 +378,20 @@ export default function CompanyFormPage() {
                 <input
                   id="company-username"
                   type="text"
-                  required
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  placeholder="usuario-empresa"
+                  value={values.username}
+                  onChange={(e) => handleChange('username', e.target.value)}
+                  onBlur={() => handleBlur('username')}
+                  placeholder="usuarioempresa"
                   disabled={isEditing}
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 font-mono text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 font-mono text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    errors.username && touched.username
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                  }`}
                 />
+                {errors.username && touched.username && !isEditing && (
+                  <p className="mt-2 text-xs text-red-600">{errors.username}</p>
+                )}
                 {isEditing && (
                   <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2">
                     <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
@@ -304,8 +414,8 @@ export default function CompanyFormPage() {
                     <input
                       id="company-current-password"
                       type={showCurrentPassword ? 'text' : 'password'}
-                      value={form.currentPassword}
-                      onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+                      value={values.currentPassword}
+                      onChange={(e) => handleChange('currentPassword', e.target.value)}
                       placeholder="Ingresa la contraseña actual"
                       className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                     />
@@ -342,11 +452,15 @@ export default function CompanyFormPage() {
                   <input
                     id="company-password"
                     type={showPassword ? 'text' : 'password'}
-                    required={!isEditing}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    value={values.password}
+                    onChange={(e) => handleChange('password', e.target.value)}
+                    onBlur={() => handleBlur('password')}
                     placeholder={isEditing ? 'Dejar vacío si no deseas cambiar' : '••••••••'}
-                    className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                    className={`w-full rounded-xl border-2 bg-gray-50 px-4 py-3 pr-11 text-sm font-medium text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-4 ${
+                      errors.password && touched.password
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                        : 'border-gray-200 focus:border-indigo-500 focus:ring-indigo-500/10'
+                    }`}
                   />
                   <button
                     type="button"
@@ -366,7 +480,10 @@ export default function CompanyFormPage() {
                     )}
                   </button>
                 </div>
-                {isEditing && (
+                {errors.password && touched.password && (
+                  <p className="mt-2 text-xs text-red-600">{errors.password}</p>
+                )}
+                {isEditing && !errors.password && (
                   <p className="mt-2 text-xs text-gray-500">
                     Completar solo si deseas cambiarla
                   </p>
@@ -397,9 +514,8 @@ export default function CompanyFormPage() {
                 </label>
                 <select
                   id="company-role"
-                  required
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  value={values.role}
+                  onChange={(e) => handleChange('role', e.target.value)}
                   className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                 >
                   <option value="owner">Owner (Administrador de Empresa)</option>
@@ -414,9 +530,8 @@ export default function CompanyFormPage() {
                 </label>
                 <select
                   id="company-active"
-                  required
-                  value={form.active ? 'true' : 'false'}
-                  onChange={(e) => setForm({ ...form, active: e.target.value === 'true' })}
+                  value={values.active ? 'true' : 'false'}
+                  onChange={(e) => handleChange('active', e.target.value === 'true')}
                   className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                 >
                   <option value="true">Activa</option>
