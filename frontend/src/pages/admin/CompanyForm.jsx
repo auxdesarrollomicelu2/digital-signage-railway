@@ -111,7 +111,7 @@ export default function CompanyFormPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
+    <div className="enter mx-auto w-full max-w-4xl space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link

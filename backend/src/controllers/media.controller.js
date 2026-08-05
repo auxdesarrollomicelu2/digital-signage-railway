@@ -82,6 +82,47 @@ const uploadMedia = async (req, res) => {
   }
 };
 
+const renameMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { original_name } = req.body;
+
+    const oldMedia = await mediaService.getMediaById(id, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+
+    if (!oldMedia) {
+      return res.status(404).json({ error: 'Archivo no encontrado' });
+    }
+
+    const media = await mediaService.renameMediaFile(id, original_name, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+
+    await logAudit({
+      userId: req.user.companyId,
+      userName: req.user.username,
+      action: 'update',
+      resourceType: 'Media',
+      resourceId: media.id,
+      resourceName: media.original_name,
+      oldValues: { original_name: oldMedia.original_name },
+      newValues: { original_name: media.original_name },
+      companyId: media.company_id,
+    });
+
+    res.json(media);
+  } catch (err) {
+    console.error('Error al renombrar media:', err);
+    const statusCode = err.message.includes('no encontrado') ? 404 :
+                       err.message.includes('permiso') ? 403 :
+                       err.message.includes('vacío') ? 400 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
 const deleteMedia = async (req, res) => {
   try {
     const { id } = req.params;
@@ -140,6 +181,7 @@ module.exports = {
   listMedia,
   getMedia,
   uploadMedia,
+  renameMedia,
   deleteMedia,
   getMediaStats,
 };

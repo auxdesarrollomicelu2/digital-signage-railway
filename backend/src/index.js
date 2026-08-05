@@ -46,6 +46,29 @@ async function start() {
     await sequelize.sync();
     console.log('[DB] Base de datos sincronizada');
 
+    // sequelize.sync() no altera tablas ya existentes: si la tabla Venues ya
+    // existía antes de agregar cover_url/cover_key al modelo, hay que añadir
+    // las columnas a mano (idempotente, no toca el resto del esquema).
+    const queryInterface = sequelize.getQueryInterface();
+    const venueTable = { tableName: 'Venues', schema: process.env.DB_SCHEMA || 'digital_signage' };
+    const venueColumns = await queryInterface.describeTable(venueTable);
+    if (!venueColumns.cover_url) {
+      await queryInterface.addColumn(venueTable, 'cover_url', { type: require('sequelize').STRING, allowNull: true });
+      console.log('[DB] Columna Venues.cover_url agregada');
+    }
+    if (!venueColumns.cover_key) {
+      await queryInterface.addColumn(venueTable, 'cover_key', { type: require('sequelize').STRING, allowNull: true });
+      console.log('[DB] Columna Venues.cover_key agregada');
+    }
+
+    const companyTable = { tableName: 'Companies', schema: process.env.DB_SCHEMA || 'digital_signage' };
+    const companyColumns = await queryInterface.describeTable(companyTable);
+    if (!companyColumns.logo_url) {
+      await queryInterface.addColumn(companyTable, 'logo_url', { type: require('sequelize').STRING, allowNull: true });
+      console.log('[DB] Columna Companies.logo_url agregada');
+    }
+
+
     setupMQTT();
 
     // Mark screens offline if no heartbeat in 60 seconds

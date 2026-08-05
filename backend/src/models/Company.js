@@ -11,6 +11,7 @@ const Company = sequelize.define('Company', {
   document: { type: DataTypes.STRING },
   phone: { type: DataTypes.STRING },
   active: { type: DataTypes.BOOLEAN, defaultValue: true },
+  logo_url: { type: DataTypes.STRING },
 }, {
   schema: 'digital_signage',
   tableName: 'Companies'

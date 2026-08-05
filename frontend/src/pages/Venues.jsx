@@ -1,15 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Building2 } from 'lucide-react';
 import api from '../api';
 import toast from 'react-hot-toast';
 import useVenueFilters from '../hooks/useVenueFilters';
-import CompanySelector from '../components/admin/CompanySelector';
-import FilterBar from '../components/ui/FilterBar';
-import Input from '../components/ui/Input';
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import FilterSearchInput from '../components/shared/FilterSearchInput';
+import FilterChipBar from '../components/shared/FilterChipBar';
+import FilterBarRow from '../components/shared/FilterBarRow';
+import MagneticFAB from '../components/shared/MagneticFAB';
+import VenueCard from '../components/shared/VenueCard';
+import SedeModal from '../components/shared/SedeModal';
+import DeleteModal from '../components/shared/DeleteModal';
+import SedeScreensModal from '../components/shared/SedeScreensModal';
+import { useTheme } from '../context/ThemeContext';
+import { FD } from '../styles/tokens';
 
 export default function Venues() {
+  const { T } = useTheme();
+
   const [venues, setVenues] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [screensModalTarget, setScreensModalTarget] = useState(null);
   const [form, setForm] = useState({ name: '', address: '', description: '' });
 
   const {
@@ -21,7 +35,28 @@ export default function Venues() {
     isSuperAdmin,
   } = useVenueFilters();
 
-  useEffect(() => { loadVenues(); }, [selectedCompanyId, searchTerm]);
+  const hasFilters = (isSuperAdmin && selectedCompanyId !== 'all') || !!searchTerm;
+  const totalScreens = venues.reduce((a, v) => a + (v.screenCount || 0), 0);
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
+
+  useEffect(() => { loadVenues(); }, [selectedCompanyId, debouncedSearchTerm]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    api.get('/companies').then(({ data }) => setCompanies(data)).catch(() => {});
+  }, [isSuperAdmin]);
+
+  const filterFields = useMemo(() => {
+    if (!isSuperAdmin) return [];
+    return [{
+      id: 'company', label: 'Empresa', icon: Building2, type: 'select', emptyValue: 'all',
+      options: [{ value: 'all', label: 'Todas las empresas' }, ...companies.map((c) => ({ value: String(c.id), label: c.name }))],
+    }];
+  }, [isSuperAdmin, companies]);
+
+  function handleFilterChange(id, value) {
+    if (id === 'company') setSelectedCompanyId(value);
+  }
 
   async function loadVenues() {
     try {
@@ -29,8 +64,8 @@ export default function Venues() {
       const url = queryString ? `/venues?${queryString}` : '/venues';
       const { data } = await api.get(url);
       setVenues(data);
-    } catch { 
-      toast.error('Error cargando sedes'); 
+    } catch {
+      toast.error('Error cargando sedes');
     }
   }
 
@@ -63,121 +98,105 @@ export default function Venues() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('¿Eliminar esta sede? Se eliminarán sus pantallas asociadas.')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/venues/${id}`);
+      await api.delete(`/venues/${deleteTarget.id}`);
       toast.success('Sede eliminada');
+      setDeleteTarget(null);
       loadVenues();
-    } catch { toast.error('Error eliminando sede'); }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error eliminando sede');
+    }
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Sedes</h2>
-        <button onClick={openCreate} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          + Nueva Sede
-        </button>
+    <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T.primary, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>
+            Gestión
+          </div>
+          <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
+            Sedes
+          </h1>
+          <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+            {venues.length} ubicaci{venues.length === 1 ? 'ón' : 'ones'} · {totalScreens} pantalla{totalScreens !== 1 ? 's' : ''}
+          </p>
+        </div>
       </div>
 
-      <FilterBar>
+      <FilterBarRow>
         {isSuperAdmin && (
-          <CompanySelector
-            value={selectedCompanyId}
-            onChange={setSelectedCompanyId}
-            includeAllOption={true}
-            allOptionLabel="Todas las empresas"
-            label="Empresa"
-            className="flex-1 min-w-[200px]"
+          <FilterChipBar
+            fields={filterFields}
+            values={{ company: selectedCompanyId }}
+            onChange={handleFilterChange}
+            style={{ flex: '0 1 auto' }}
           />
         )}
-        <Input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar por nombre o dirección"
-          label="Buscar"
-          className="flex-1 min-w-[250px]"
-        />
-      </FilterBar>
-
-      {venues.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 text-center border border-gray-100">
-          <p className="text-gray-500">No hay sedes registradas</p>
-          <button onClick={openCreate} className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium">
-            Crear primera sede
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+          <FilterSearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Buscar sede o dirección…"
+            style={{ flex: '0 1 240px', minWidth: 160 }}
+          />
+          <span style={{ fontSize: 11.5, color: T.textMuted, whiteSpace: 'nowrap' }}>
+            {venues.length} resultado{venues.length !== 1 ? 's' : ''}
+          </span>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {venues.map((venue) => (
-            <div key={venue.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-gray-800">{venue.name}</h3>
-                  {venue.address && <p className="text-sm text-gray-500 mt-1">{venue.address}</p>}
-                </div>
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">
-                  {venue.screenCount || 0} pantallas
-                </span>
-              </div>
-              {venue.description && <p className="text-sm text-gray-600 mb-4 line-clamp-2">{venue.description}</p>}
-              <div className="flex gap-2 pt-3 border-t border-gray-100">
-                <button onClick={() => openEdit(venue)} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                  Editar
-                </button>
-                <button onClick={() => handleDelete(venue.id)} className="text-sm text-red-500 hover:text-red-700 font-medium">
-                  Eliminar
-                </button>
-              </div>
-            </div>
+      </FilterBarRow>
+
+      {venues.length === 0 && (
+        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
+          Sin sedes {hasFilters ? 'con los filtros aplicados' : 'registradas'}.
+          {!hasFilters && (
+            <button
+              onClick={openCreate}
+              style={{ display: 'block', margin: '10px auto 0', fontSize: 12, color: T.primary, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              Crear la primera
+            </button>
+          )}
+        </div>
+      )}
+
+      {venues.length > 0 && (
+        <div className="sede-grid">
+          {venues.map((venue, i) => (
+            <VenueCard
+              key={venue.id}
+              venue={venue}
+              empresaName={isSuperAdmin ? venue.Company?.name : null}
+              onEdit={() => openEdit(venue)}
+              onDelete={() => setDeleteTarget(venue)}
+              onViewScreens={() => setScreensModalTarget(venue)}
+              onCoverUploaded={(updated) => setVenues((prev) => prev.map((v) => (v.id === updated.id ? { ...v, cover_url: updated.cover_url } : v)))}
+              delay={i * 45}
+            />
           ))}
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
-              {editing ? 'Editar Sede' : 'Nueva Sede'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
-                  type="text" required value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                <input
-                  type="text" value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  value={form.description} rows={3}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors">
-                  {editing ? 'Guardar' : 'Crear'}
-                </button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors">
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      <SedeModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleSubmit}
+        form={form}
+        setForm={setForm}
+        isEdit={!!editing}
+      />
+      <DeleteModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        itemName={deleteTarget?.name}
+      />
+      {screensModalTarget && (
+        <SedeScreensModal sede={screensModalTarget} onClose={() => setScreensModalTarget(null)} />
       )}
+
+      <MagneticFAB onClick={openCreate} label="Nueva sede" icon={Building2} color={T.primary} />
     </div>
   );
 }

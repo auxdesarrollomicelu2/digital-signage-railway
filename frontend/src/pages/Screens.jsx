@@ -1,45 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
+import { Monitor, Building2, MapPin, Flag } from 'lucide-react';
 import api from '../api';
 import toast from 'react-hot-toast';
 import useScreenFilters from '../hooks/useScreenFilters';
-import CompanySelector from '../components/admin/CompanySelector';
-import VenueSelector from '../components/admin/VenueSelector';
-import FilterBar from '../components/ui/FilterBar';
-import Select from '../components/ui/Select';
-import Input from '../components/ui/Input';
-
-function IconEye({ className = 'h-4 w-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconPencil({ className = 'h-4 w-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-    </svg>
-  );
-}
-
-function IconTrash({ className = 'h-4 w-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-    </svg>
-  );
-}
+import useDebouncedValue from '../hooks/useDebouncedValue';
+import FilterSearchInput from '../components/shared/FilterSearchInput';
+import FilterChipBar from '../components/shared/FilterChipBar';
+import FilterBarRow from '../components/shared/FilterBarRow';
+import MagneticFAB from '../components/shared/MagneticFAB';
+import ScreenCard from '../components/shared/ScreenCard';
+import ScreenModal from '../components/shared/ScreenModal';
+import DeleteModal from '../components/shared/DeleteModal';
+import { useTheme } from '../context/ThemeContext';
+import usePermissions from '../hooks/usePermissions';
+import { FD } from '../styles/tokens';
 
 export default function Screens() {
+  const { T } = useTheme();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { isSuperAdmin } = usePermissions();
+
   const [screens, setScreens] = useState([]);
   const [venues, setVenues] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name: '', device_id: '', venue_id: '', orientation: 'landscape' });
+  const [thumbnails, setThumbnails] = useState({}); // { [screenId]: { url, mime_type } }
 
   const {
     selectedCompanyId,
@@ -51,15 +42,64 @@ export default function Screens() {
     searchTerm,
     setSearchTerm,
     buildQueryParams,
-    isSuperAdmin,
+    resetFilters,
   } = useScreenFilters();
+
+  // Filtro de estado inicial via URL (?status=online|offline) — usado por los
+  // enlaces "En línea" / "Fuera de línea" del Dashboard.
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'online' || statusParam === 'offline') {
+      setSelectedStatus(statusParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
 
   useEffect(() => {
     loadScreens();
     loadVenues();
-    const interval = setInterval(loadScreens, 10000);
+    const interval = setInterval(() => { if (!document.hidden) loadScreens(); }, 10000);
     return () => clearInterval(interval);
-  }, [selectedCompanyId, selectedVenueId, selectedStatus, searchTerm]);
+  }, [selectedCompanyId, selectedVenueId, selectedStatus, debouncedSearchTerm]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    api.get('/companies').then(({ data }) => setCompanies(data)).catch(() => {});
+  }, [isSuperAdmin]);
+
+  const filterFields = useMemo(() => {
+    const fields = [];
+    if (isSuperAdmin) {
+      fields.push({
+        id: 'company', label: 'Empresa', icon: Building2, type: 'select', emptyValue: 'all',
+        options: [{ value: 'all', label: 'Todas las empresas' }, ...companies.map((c) => ({ value: String(c.id), label: c.name }))],
+      });
+    }
+    fields.push({
+      id: 'venue', label: 'Sede', icon: MapPin, type: 'select', emptyValue: 'all',
+      options: [{ value: 'all', label: 'Todas las sedes' }, ...venues.map((v) => ({ value: String(v.id), label: v.name }))],
+    });
+    fields.push({
+      id: 'status', label: 'Estado', icon: Flag, type: 'select', emptyValue: '',
+      options: [
+        { value: '', label: 'Todos los estados' },
+        { value: 'online', label: 'En línea' },
+        { value: 'offline', label: 'Fuera de línea' },
+      ],
+    });
+    return fields;
+  }, [isSuperAdmin, companies, venues]);
+
+  const filterValues = { company: selectedCompanyId, venue: selectedVenueId, status: selectedStatus };
+  const hasFilters = (isSuperAdmin && selectedCompanyId !== 'all') || selectedVenueId !== 'all' || !!selectedStatus || !!searchTerm;
+
+  function handleFilterChange(id, value) {
+    if (id === 'company') setSelectedCompanyId(value);
+    else if (id === 'venue') setSelectedVenueId(value);
+    else if (id === 'status') setSelectedStatus(value);
+  }
 
   async function loadScreens() {
     try {
@@ -67,9 +107,28 @@ export default function Screens() {
       const url = queryString ? `/screens?${queryString}` : '/screens';
       const { data } = await api.get(url);
       setScreens(data);
+      loadThumbnails(data);
     } catch {
       toast.error('Error cargando pantallas');
     }
+  }
+
+  // Miniatura real: primer contenido de la playlist, solo para pantallas online
+  // (evita llamadas innecesarias para pantallas offline, que igual no la muestran).
+  async function loadThumbnails(screenList) {
+    const onlineScreens = screenList.filter((s) => s.status === 'online');
+    if (onlineScreens.length === 0) return;
+    const details = await Promise.all(
+      onlineScreens.map((s) => api.get(`/screens/${s.id}`).then((r) => r.data).catch(() => null))
+    );
+    const map = {};
+    details.forEach((d, i) => {
+      const firstItem = d?.ScreenMedia?.[0];
+      if (firstItem?.Media) {
+        map[onlineScreens[i].id] = { url: firstItem.Media.url, mime_type: firstItem.Media.mime_type };
+      }
+    });
+    setThumbnails(map);
   }
 
   async function loadVenues() {
@@ -83,7 +142,7 @@ export default function Screens() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    setForm({ name: '', device_id: '', venue_id: venues[0]?.id ? String(venues[0].id) : '', orientation: 'landscape' });
     setShowModal(true);
   }
 
@@ -92,7 +151,7 @@ export default function Screens() {
     setForm({
       name: screen.name,
       device_id: screen.device_id,
-      venue_id: screen.venue_id || '',
+      venue_id: screen.venue_id ? String(screen.venue_id) : '',
       orientation: screen.orientation || 'landscape',
     });
     setShowModal(true);
@@ -116,11 +175,12 @@ export default function Screens() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('¿Eliminar esta pantalla?')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/screens/${id}`);
+      await api.delete(`/screens/${deleteTarget.id}`);
       toast.success('Pantalla eliminada');
+      setDeleteTarget(null);
       loadScreens();
     } catch {
       toast.error('Error eliminando pantalla');
@@ -128,247 +188,106 @@ export default function Screens() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Pantallas</h2>
-          <p className="mt-1 text-sm text-gray-500">Gestiona dispositivos y su sede asignada</p>
+          <div style={{ fontSize: 12, fontWeight: 600, color: T.primary, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>
+            Gestión
+          </div>
+          <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
+            Pantallas
+          </h1>
+          <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+            {screens.length} dispositivo{screens.length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-        >
-          Nueva pantalla
-        </button>
       </div>
 
-      <FilterBar>
-        {isSuperAdmin && (
-          <CompanySelector
-            value={selectedCompanyId}
-            onChange={setSelectedCompanyId}
-            includeAllOption={true}
-            allOptionLabel="Todas las empresas"
-            label="Empresa"
-            className="flex-1 min-w-[200px]"
+      <FilterBarRow>
+        <FilterChipBar
+          fields={filterFields}
+          values={filterValues}
+          onChange={handleFilterChange}
+          style={{ flex: '0 1 auto' }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+          <FilterSearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Buscar por nombre o device ID…"
+            style={{ flex: '0 1 240px', minWidth: 160 }}
           />
-        )}
-        <VenueSelector
-          value={selectedVenueId}
-          onChange={setSelectedVenueId}
-          companyId={isSuperAdmin ? selectedCompanyId : null}
-          includeAllOption={true}
-          allOptionLabel="Todas las sedes"
-          label="Sede"
-          className="flex-1 min-w-[200px]"
-        />
-        <Select
-          value={selectedStatus}
-          onChange={setSelectedStatus}
-          options={[
-            { value: 'online', label: 'En línea' },
-            { value: 'offline', label: 'Fuera de línea' },
-          ]}
-          placeholder="Todos los estados"
-          label="Estado"
-          className="flex-1 min-w-[180px]"
-        />
-        <Input
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar por nombre o device ID"
-          label="Buscar"
-          className="flex-1 min-w-[220px]"
-        />
-      </FilterBar>
-
-      {screens.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200/80 bg-white px-6 py-14 text-center shadow-sm">
-          <p className="text-sm text-gray-500">No hay pantallas registradas</p>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-          >
-            Crear la primera
-          </button>
+          <span style={{ fontSize: 11.5, color: T.textMuted, whiteSpace: 'nowrap' }}>
+            {screens.length} resultado{screens.length !== 1 ? 's' : ''}
+          </span>
         </div>
-      ) : (
-        <section className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
-          <div className="border-b border-gray-100 bg-gray-50/80 px-4 py-3 sm:px-5">
-            <h3 className="text-sm font-semibold text-gray-900">Listado</h3>
-            <p className="mt-0.5 text-xs text-gray-500">{screens.length} pantalla{screens.length === 1 ? '' : 's'}</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-2.5 sm:px-5">Pantalla</th>
-                  <th className="px-4 py-2.5 sm:px-5">Sede</th>
-                  <th className="px-4 py-2.5 sm:px-5">Device ID</th>
-                  <th className="px-4 py-2.5 sm:px-5">Estado</th>
-                  <th className="px-4 py-2.5 text-right sm:px-5">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {screens.map((screen) => {
-                  const online = screen.status === 'online';
-                  return (
-                    <tr key={screen.id} className="transition hover:bg-indigo-50/35">
-                      <td className="px-4 py-3 sm:px-5">
-                        <Link
-                          to={`/screens/${screen.id}`}
-                          className="font-semibold text-indigo-700 transition hover:text-indigo-900"
-                        >
-                          <span className="line-clamp-2">{screen.name}</span>
-                        </Link>
-                      </td>
-                      <td className="max-w-[10rem] truncate px-4 py-3 text-gray-600 sm:max-w-none sm:px-5">
-                        {screen.Venue?.name || '—'}
-                      </td>
-                      <td className="px-4 py-3 sm:px-5">
-                        <code className="rounded-md bg-gray-50 px-2 py-0.5 font-mono text-xs text-gray-800 ring-1 ring-gray-100">
-                          {screen.device_id}
-                        </code>
-                      </td>
-                      <td className="px-4 py-3 sm:px-5">
-                        <span
-                          className={`inline-flex shrink-0 flex-nowrap items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-                            online
-                              ? 'bg-emerald-50 text-emerald-800 ring-emerald-600/15'
-                              : 'bg-rose-50 text-rose-800 ring-rose-600/15'
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${online ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                            aria-hidden
-                          />
-                          {online ? 'En línea' : 'Fuera de línea'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 sm:px-5">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Link
-                            to={`/screens/${screen.id}`}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-indigo-100 hover:text-indigo-700"
-                            title="Ver detalle"
-                            aria-label="Ver detalle"
-                          >
-                            <IconEye />
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => openEdit(screen)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-200 hover:text-gray-900"
-                            title="Editar"
-                            aria-label="Editar"
-                          >
-                            <IconPencil />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(screen.id)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-                            title="Eliminar"
-                            aria-label="Eliminar"
-                          >
-                            <IconTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      </FilterBarRow>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl">
-            <div className="border-b border-gray-100 px-5 py-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editing ? 'Editar pantalla' : 'Nueva pantalla'}
-              </h3>
-              {editing && (
-                <p className="mt-0.5 text-xs text-gray-500">El Device ID no se puede cambiar al editar</p>
-              )}
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
-              <div>
-                <label htmlFor="screen-form-name" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Nombre *</label>
-                <input
-                  id="screen-form-name"
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+      <LayoutGroup>
+        <div className="screen-grid">
+          <AnimatePresence mode="popLayout">
+            {screens.map((screen, i) => (
+              <motion.div
+                key={screen.id}
+                layout
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1], delay: i * 0.02 }}
+              >
+                <ScreenCard
+                  screen={screen}
+                  thumbnail={thumbnails[screen.id]}
+                  onView={(s) => navigate(`/screens/${s.id}`)}
+                  onEdit={openEdit}
+                  onDelete={setDeleteTarget}
+                  showActions
+                  showCompany={isSuperAdmin}
                 />
-              </div>
-              <div>
-                <label htmlFor="screen-form-device" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Device ID *</label>
-                <input
-                  id="screen-form-device"
-                  type="text"
-                  required
-                  value={form.device_id}
-                  onChange={(e) => setForm({ ...form, device_id: e.target.value })}
-                  placeholder="screen-001"
-                  disabled={!!editing}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-gray-50"
-                />
-              </div>
-              <div>
-                <label htmlFor="screen-form-venue" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Sede</label>
-                <select
-                  id="screen-form-venue"
-                  value={form.venue_id}
-                  onChange={(e) => setForm({ ...form, venue_id: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <option value="">Sin sede</option>
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="screen-form-orientation" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Orientación</label>
-                <select
-                  id="screen-form-orientation"
-                  value={form.orientation}
-                  onChange={(e) => setForm({ ...form, orientation: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <option value="landscape">Horizontal</option>
-                  <option value="portrait">Vertical</option>
-                </select>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-                >
-                  {editing ? 'Guardar' : 'Crear'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </LayoutGroup>
+
+      {screens.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '44px 0', color: T.textMuted, fontSize: 13 }}>
+            No hay pantallas {hasFilters ? 'con los filtros aplicados' : 'registradas'}.
+            {hasFilters ? (
+              <button
+                onClick={resetFilters}
+                style={{ display: 'block', margin: '10px auto 0', fontSize: 12, color: T.primary, background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                Limpiar filtros
+              </button>
+            ) : (
+              <button
+                onClick={openCreate}
+                style={{ display: 'block', margin: '10px auto 0', fontSize: 12, color: T.primary, background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                Crear la primera
+              </button>
+            )}
         </div>
       )}
+
+      <ScreenModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleSubmit}
+        form={form}
+        setForm={setForm}
+        venues={venues}
+        isEdit={!!editing}
+      />
+      <DeleteModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        itemName={deleteTarget?.name}
+      />
+
+      <MagneticFAB onClick={openCreate} label="Nueva pantalla" icon={Monitor} color={T.blue} />
     </div>
   );
 }

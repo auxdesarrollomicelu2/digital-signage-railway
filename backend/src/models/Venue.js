@@ -5,6 +5,8 @@ const Venue = sequelize.define('Venue', {
   name: { type: DataTypes.STRING, allowNull: false },
   address: { type: DataTypes.STRING, defaultValue: '' },
   description: { type: DataTypes.TEXT, defaultValue: '' },
+  cover_url: { type: DataTypes.STRING, allowNull: true },
+  cover_key: { type: DataTypes.STRING, allowNull: true },
   company_id: { 
     type: DataTypes.INTEGER, 
     allowNull: false,

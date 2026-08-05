@@ -1,10 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  transition: background-color .3s ease, color .3s ease;
 }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ds-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ds-textMuted); }
+
+.card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: var(--ds-cardShadow);
+  transition: box-shadow .25s ease, border-color .25s ease, transform .25s cubic-bezier(.22,1,.36,1);
+}
+.card-hover:hover {
+  box-shadow: var(--ds-cardShadowHover);
+  border-color: var(--ds-borderActive);
+  transform: translateY(-2px);
+}
+
+@keyframes dsEnterUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.ds-enter { animation: dsEnterUp .4s cubic-bezier(.22,1,.36,1) both; }
+
+/* Portado de SignageControlCenter_v3.jsx (GlobalStyle) — usado por Modal, DeleteModal, Btn, DashScreenCard */
+@property --sweep-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.sweep { position: relative; isolation: isolate; }
+.sweep::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 2;
+  background: conic-gradient(from var(--sweep-angle,0deg), transparent 0%, transparent 80%,
+    color-mix(in srgb, var(--sc, var(--ds-primary)) 90%, transparent) 88%,
+    color-mix(in srgb, var(--sc, var(--ds-primary)) 100%, white 20%) 91%,
+    color-mix(in srgb, var(--sc, var(--ds-primary)) 90%, transparent) 94%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: var(--so,.5); animation: sweepSpin 8s linear infinite;
+  transition: opacity .3s ease, animation-duration .3s ease;
+}
+.sweep:hover::before { opacity: 1; animation-duration: 3s; }
+@keyframes sweepSpin { to { --sweep-angle: 360deg; } }
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(16px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 0 5px transparent; } }
+@keyframes ripple { to { width: 220px; height: 220px; opacity: 0; } }
+@keyframes glassSwipe { 0% { left: -100%; } 100% { left: 150%; } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.enter { opacity: 0; animation: enterUp .5s cubic-bezier(.22,1,.36,1) forwards; }
+@keyframes enterUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fabPop { 0% { opacity: 0; transform: translateY(20px) scale(.85); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+.screen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+@media (max-width: 1200px) { .screen-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+@media (max-width: 900px) { .screen-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.detail-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+@media (max-width: 1100px) { .detail-grid { grid-template-columns: 1fr !important; } }
+.sede-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 1300px) { .sede-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .sede-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } }
+@media (max-width: 560px) { .sede-grid { grid-template-columns: 1fr; } }
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; }
+@media (max-width: 560px) { .company-grid { grid-template-columns: 1fr; } }
+
+/* Dashboard — pares de cards de 2 columnas (las dos cards inteligentes). */
+.dash-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .dash-pair { grid-template-columns: 1fr; } }
+
+/* Fila superior del dashboard: Conexión y Sedes compactas + el riel elegante
+   (Actividad reciente / Estado de pantallas), todo en la misma fila. */
+.dash-top-row { display: grid; grid-template-columns: 200px 200px 1fr; gap: 14px; align-items: stretch; height: 260px; }
+@media (max-width: 900px) { .dash-top-row { grid-template-columns: 1fr 1fr; height: auto; } .dash-top-row > :last-child { grid-column: 1 / -1; height: 260px; } }
+@media (max-width: 560px) { .dash-top-row { grid-template-columns: 1fr; } .dash-top-row > :last-child { grid-column: auto; } }
 
 /* Animaciones personalizadas para los orbes del fondo */
 @layer utilities {

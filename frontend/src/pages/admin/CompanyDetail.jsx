@@ -73,7 +73,7 @@ export default function CompanyDetail() {
   ) || [];
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
+    <div className="enter mx-auto w-full max-w-7xl space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
@@ -92,19 +92,10 @@ export default function CompanyDetail() {
       <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 px-6 py-8 text-white shadow-lg sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-                <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold">{company.name}</h1>
-                <p className="mt-1 text-indigo-100">
-                  {company.role === 'super_admin' ? 'Super Administrador' : 'Propietario'}
-                </p>
-              </div>
-            </div>
+            <h1 className="text-3xl font-bold">{company.name}</h1>
+            <p className="mt-1 text-indigo-100">
+              {company.role === 'super_admin' ? 'Super Administrador' : 'Propietario'}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link

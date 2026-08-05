@@ -8,6 +8,7 @@ const {
   listMedia,
   getMedia,
   uploadMedia,
+  renameMedia,
   deleteMedia,
   getMediaStats,
 } = require('../controllers/media.controller');
@@ -235,6 +236,43 @@ router.get('/:id', getMedia);
  *         description: No se subieron archivos o formato inválido
  */
 router.post('/upload', upload.array('files', 20), uploadMedia);
+
+/**
+ * @swagger
+ * /api/media/{id}:
+ *   put:
+ *     summary: Renombrar un archivo media
+ *     description: Solo puede renombrar archivos de su propia empresa (o todos si es super admin).
+ *     tags: [Media]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del archivo media
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - original_name
+ *             properties:
+ *               original_name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Archivo renombrado exitosamente
+ *       403:
+ *         description: No tienes permiso para modificar este archivo
+ *       404:
+ *         description: Archivo no encontrado
+ */
+router.put('/:id', renameMedia);
 
 /**
  * @swagger

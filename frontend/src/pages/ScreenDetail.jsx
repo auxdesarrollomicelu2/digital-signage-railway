@@ -1,65 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
+  ArrowLeft, MapPin, Globe, Copy, RotateCw, ListMusic, Image as ImageIcon, Video,
+  PlayCircle, GripVertical, ChevronUp, ChevronDown, Trash2, X, ExternalLink, Zap,
+} from 'lucide-react';
 import api from '../api';
 import toast from 'react-hot-toast';
-
-const log = (...args) => console.log('[ScreenDetail]', ...args);
-
-function IconGrip({ className = 'w-5 h-5' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M7 4a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM13 4a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM7 9.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM13 9.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM7 15a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM13 15a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-    </svg>
-  );
-}
-
-function IconChevronUp({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconChevronDown({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconTrash({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconCopy({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M8 3a1 1 0 011-1h2a1 1 0 011 1v4h-4V3zM3 8a1 1 0 011-1h4v9H4a1 1 0 01-1-1V8zm6-1h6a1 1 0 011 1v9a1 1 0 01-1 1h-6V7z" />
-    </svg>
-  );
-}
-
-function IconRefresh({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconPlaylist({ className = 'w-4 h-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h10v2H3v-2z" />
-    </svg>
-  );
-}
+import { useTheme } from '../context/ThemeContext';
+import StatusBadge from '../components/shared/StatusBadge';
+import Btn from '../components/shared/Btn';
+import timeAgo from '../utils/timeAgo';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
+import { FD, FM } from '../styles/tokens';
 
 function isVideoMedia(item) {
   const mime = String(item?.mime_type || '').toLowerCase();
@@ -68,37 +22,37 @@ function isVideoMedia(item) {
   return /\.(mp4|webm|ogg|ogv|mov|m4v|avi|mkv|mpeg|mpg|wmv|3gp|flv|ts)(\?|$)/i.test(url);
 }
 
-/** Con alias explícito `as: 'ScreenMedia'`, Sequelize devuelve exactamente esa clave. */
 function playlistQueueSubtitle(length) {
   if (length === 0) return 'Aún no hay contenido asignado';
   if (length === 1) return '1 elemento en cola';
   return `${length} elementos en cola`;
 }
 
+/** Con alias explícito `as: 'ScreenMedia'`, Sequelize devuelve exactamente esa clave. */
 function getScreenMediaRows(data) {
   if (!data || typeof data !== 'object') return [];
-  // Busca cualquier variante por si acaso
   const rows = data.ScreenMedia ?? data.ScreenMedias ?? data.screenMedia ?? data.screenMedias;
-  if (Array.isArray(rows)) {
-    log('getScreenMediaRows encontró', rows.length, 'filas');
-    return rows;
-  }
-  log('getScreenMediaRows: clave no encontrada. Keys:', Object.keys(data));
+  if (Array.isArray(rows)) return rows;
   return [];
 }
 
 export default function ScreenDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { T } = useTheme();
   const [screen, setScreen] = useState(null);
   const [allMedia, setAllMedia] = useState([]);
   const [playlist, setPlaylist] = useState([]);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  useLockBodyScroll(showMediaPicker);
   const [selectedMediaIds, setSelectedMediaIds] = useState([]);
   const [pickerUploading, setPickerUploading] = useState(false);
   const [pickerDragActive, setPickerDragActive] = useState(false);
   const [playlistDragSource, setPlaylistDragSource] = useState(null);
   const [playlistDragOver, setPlaylistDragOver] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const [copied, setCopied] = useState(false);
   /** Evita que el polling borre la playlist antes de guardar */
   const playlistDirtyRef = useRef(false);
   const pickerFileInputRef = useRef(null);
@@ -113,7 +67,6 @@ export default function ScreenDetail() {
 
   function markPlaylistDirty() {
     playlistDirtyRef.current = true;
-    log('Playlist marcada como sin guardar (no se sobrescribe al refrescar)');
   }
 
   async function loadScreen(opts = {}) {
@@ -121,16 +74,8 @@ export default function ScreenDetail() {
     try {
       const { data } = await api.get(`/screens/${id}`);
       const mediaRows = getScreenMediaRows(data);
-      log('GET /screens/:id OK', {
-        screenId: id,
-        items: mediaRows.length,
-        keys: Object.keys(data).filter((k) => /media/i.test(k)),
-      });
       setScreen(data);
-      if (playlistDirtyRef.current && !initial) {
-        log('Refresco omitido: hay cambios locales sin publicar');
-        return;
-      }
+      if (playlistDirtyRef.current && !initial) return;
       if (mediaRows.length > 0) {
         const next = mediaRows
           .filter((sm) => sm.Media != null)
@@ -148,7 +93,6 @@ export default function ScreenDetail() {
       }
     } catch (err) {
       console.error('[ScreenDetail] Error cargando pantalla:', err);
-      console.error('Respuesta:', err.response?.data, 'status:', err.response?.status);
       toast.error(err.response?.data?.error || 'Error cargando pantalla');
     } finally {
       if (initial) setLoading(false);
@@ -159,7 +103,9 @@ export default function ScreenDetail() {
     try {
       const { data } = await api.get('/media');
       setAllMedia(data);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   async function uploadPickerFiles(fileList) {
@@ -205,15 +151,12 @@ export default function ScreenDetail() {
       toast.error('Selecciona al menos un archivo');
       return;
     }
-
     const existing = new Set(playlist.map((p) => p.media_id));
     const toAdd = allMedia.filter((m) => selectedMediaIds.includes(m.id) && !existing.has(m.id));
-
     if (toAdd.length === 0) {
       toast.error('Los elementos seleccionados ya están en la playlist');
       return;
     }
-
     markPlaylistDirty();
     const basePosition = playlist.length;
     const appended = toAdd.map((media, idx) => ({
@@ -282,12 +225,7 @@ export default function ScreenDetail() {
   function handlePlaylistRowDrop(toIndex, e) {
     e.preventDefault();
     const raw = e.dataTransfer.getData('text/plain');
-    let from;
-    if (raw === '') {
-      from = playlistDragSource;
-    } else {
-      from = Number.parseInt(raw, 10);
-    }
+    const from = raw === '' ? playlistDragSource : Number.parseInt(raw, 10);
     if (from == null || Number.isNaN(from)) {
       handlePlaylistDragEnd();
       return;
@@ -297,39 +235,26 @@ export default function ScreenDetail() {
   }
 
   async function savePlaylist() {
-    const items = playlist.map((p, i) => ({
-      media_id: p.media_id,
-      duration: p.duration,
-      position: i,
-    }));
+    const items = playlist.map((p, i) => ({ media_id: p.media_id, duration: p.duration, position: i }));
     const invalid = items.filter((it) => it.media_id == null || Number.isNaN(Number(it.media_id)));
     if (invalid.length > 0) {
-      console.error('[ScreenDetail] Items sin media_id válido:', playlist, items);
       toast.error('Hay ítems sin ID de media. Quita y vuelve a agregar.');
       return;
     }
     try {
-      log('POST /screens/:id/playlist', { screenId: id, items });
-      const res = await api.post(`/screens/${id}/playlist`, { items });
-      log('Playlist guardada, respuesta:', res.data);
+      await api.post(`/screens/${id}/playlist`, { items });
       playlistDirtyRef.current = false;
       toast.success('Playlist guardada y enviada al dispositivo');
       await loadScreen({ initial: false });
     } catch (err) {
       console.error('[ScreenDetail] Error guardando playlist:', err);
-      console.error('Status:', err.response?.status, 'Body:', err.response?.data);
-      const msg =
-        err.response?.data?.error ||
-        err.message ||
-        (err.response?.data && JSON.stringify(err.response.data)) ||
-        'Error guardando playlist';
+      const msg = err.response?.data?.error || err.message || 'Error guardando playlist';
       toast.error(typeof msg === 'string' ? msg : 'Error guardando playlist');
     }
   }
 
   async function sendCommand(type) {
     try {
-      log('POST /screens/:id/command', type);
       await api.post(`/screens/${id}/command`, { type });
       toast.success(`Comando "${type}" enviado`);
     } catch (err) {
@@ -339,38 +264,41 @@ export default function ScreenDetail() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><p className="text-gray-500">Cargando...</p></div>;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260, color: T.textMuted, fontSize: 13 }}>
+        Cargando...
+      </div>
+    );
   }
 
   if (!screen) {
-    return <div className="text-center py-12"><p className="text-gray-500">Pantalla no encontrada</p></div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 0', color: T.textMuted, fontSize: 13 }}>
+        Pantalla no encontrada
+      </div>
+    );
   }
 
-  // Construir la URL del player dinámicamente
-  const getPlayerUrl = () => {
+  function getPlayerUrl() {
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    
-    // En desarrollo local, usar localhost:5174
-    // En producción, usar el mismo host con puerto 5174
     const playerHost = isLocalhost ? 'localhost' : host;
-    const playerPort = 5174;
-    
-    return `http://${playerHost}:${playerPort}/?device=${screen.device_id}`;
-  };
-
+    return `http://${playerHost}:5174/?device=${screen.device_id}`;
+  }
   const playerUrl = getPlayerUrl();
 
   async function copyPlayerUrl() {
     try {
       await navigator.clipboard.writeText(playerUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
       toast.success('URL copiada al portapapeles');
     } catch {
       toast.error('No se pudo copiar la URL');
     }
   }
 
-  async function openPlayerInNewTab() {
+  function openPlayerInNewTab() {
     try {
       window.open(playerUrl, '_blank', 'noopener,noreferrer');
     } catch {
@@ -378,362 +306,363 @@ export default function ScreenDetail() {
     }
   }
 
+  const online = screen.status === 'online';
+  const sc = online ? T.green : T.red;
+  const nowPlaying = online ? playlist[0] : null;
+
   return (
-    <div className="w-full space-y-6">
-      <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Miga de pan">
-        <Link to="/screens" className="text-gray-500 hover:text-indigo-600 transition-colors">Pantallas</Link>
-        <span className="text-gray-300" aria-hidden>/</span>
-        <span className="text-gray-900 font-semibold">{screen.name}</span>
-      </nav>
+    <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Botón de regreso notorio + breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Btn variant="secondary" onClick={() => navigate('/screens')} style={{ gap: 6 }}>
+          <ArrowLeft size={15} /> Volver a pantallas
+        </Btn>
+        <span style={{ color: T.textMuted, fontSize: 13 }}>/</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{screen.name}</span>
+        <StatusBadge status={screen.status} />
+      </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-        <div className="space-y-4 lg:col-span-4">
-          <section className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Información</h2>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm">
-              <dl className="space-y-3 min-w-0">
-                <div>
-                  <dt className="text-xs font-medium text-gray-500">Nombre</dt>
-                  <dd className="mt-0.5 font-semibold text-gray-900 leading-snug break-words">{screen.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-gray-500">Device ID</dt>
-                  <dd className="mt-0.5 text-gray-800 capitalize">{screen.device_id}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-gray-500">Orientación</dt>
-                  <dd className="mt-0.5 text-gray-800 capitalize">{screen.orientation}</dd>
-                </div>
-              </dl>
-              <dl className="space-y-3 min-w-0">
-                <div>
-                  <dt className="text-xs font-medium text-gray-500">Sede</dt>
-                  <dd className="mt-0.5 text-gray-800 break-words">{screen.Venue?.name || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-gray-500">Estado</dt>
-                  <dd className="mt-0.5">
-                    <span className={`inline-flex shrink-0 flex-nowrap items-center gap-1.5 whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      screen.status === 'online' ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20' : 'bg-red-50 text-red-800 ring-1 ring-red-600/20'
-                    }`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${screen.status === 'online' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      {screen.status === 'online' ? 'En línea' : 'Fuera de línea'}
-                    </span>
-                  </dd>
-                </div>
-                {screen.last_heartbeat && (
-                  <div>
-                    <dt className="text-xs font-medium text-gray-500">Último heartbeat</dt>
-                    <dd className="mt-0.5 text-gray-800 text-xs tabular-nums leading-snug">{new Date(screen.last_heartbeat).toLocaleString()}</dd>
-                  </div>
-                )}
-              </dl>
+      {/* Hero */}
+      <div className="sweep card" style={{ '--sc': sc, '--so': 0.8, padding: '34px 38px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -80, right: -80, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle,${sc}14 0%,transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, minWidth: 0 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: T.text, letterSpacing: '-.03em', fontFamily: FD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {screen.name}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: T.textSub, display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <MapPin size={12} /> {screen.Venue?.name || 'Sin sede'}
+                </span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textMuted, display: 'inline-block' }} />
+                <code style={{ fontSize: 12, color: T.primary, background: T.primaryDim, padding: '3px 8px', borderRadius: 6, fontFamily: FM }}>
+                  {screen.device_id}
+                </code>
+              </div>
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Comandos al dispositivo</h2>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => sendCommand('reload')}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-800 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-900"
-              >
-                <IconRefresh className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                Recargar página
-              </button>
-              <button
-                type="button"
-                onClick={() => sendCommand('refresh')}
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-transparent bg-indigo-600 px-2 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                <IconPlaylist className="h-3.5 w-3.5 shrink-0 opacity-95" />
-                Actualizar playlist
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">URL del player</h2>
-            <div className="rounded-lg border border-indigo-200 bg-white px-3 py-2.5 mb-3">
-              <p className="font-mono text-[11px] leading-relaxed text-indigo-900/90 break-all">{playerUrl}</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={openPlayerInNewTab}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                Abrir player
-              </button>
-              <button
-                type="button"
-                onClick={copyPlayerUrl}
-                className="inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50"
-              >
-                <IconCopy className="h-3.5 w-3.5" />
-                Copiar
-              </button>
-            </div>
-          </section>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Btn
+              variant="secondary"
+              size="sm"
+              onClick={() => { setReloading(true); setTimeout(() => setReloading(false), 2000); sendCommand('reload'); }}
+            >
+              <RotateCw size={13} style={{ animation: reloading ? 'spin 1s linear infinite' : 'none' }} /> Recargar
+            </Btn>
+            <Btn variant="primary" size="sm" onClick={() => sendCommand('refresh')}>
+              <ListMusic size={13} /> Actualizar playlist
+            </Btn>
+          </div>
         </div>
 
-        <div className="lg:col-span-8">
-          <section className="rounded-2xl border border-gray-200/80 bg-white shadow-sm flex flex-col min-h-[280px]">
-            <div className="flex flex-col gap-4 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                <h2 className="text-lg font-semibold text-gray-900">Playlist</h2>
-                <span className="hidden sm:inline text-gray-300" aria-hidden>·</span>
-                <p className="text-sm text-gray-500">{playlistQueueSubtitle(playlist.length)}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMediaPicker(true)}
-                  className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-                >
-                  Agregar media
-                </button>
-                <button
-                  type="button"
-                  onClick={savePlaylist}
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-                >
-                  Guardar y publicar
-                </button>
-              </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 26, flexWrap: 'wrap' }}>
+          {[
+            ['Última actividad', timeAgo(screen.last_heartbeat)],
+            ['Orientación', screen.orientation === 'portrait' ? 'Vertical' : 'Horizontal'],
+            ['Playlist', `${playlist.length} elemento${playlist.length !== 1 ? 's' : ''}`],
+          ].map(([l, v]) => (
+            <div key={l} style={{ flex: '1 1 150px', padding: '13px 16px', borderRadius: 13, background: T.inputBg, border: `1px solid ${T.border}` }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>{l}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{v}</div>
             </div>
-
-            {playlist.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 text-center">
-                <p className="text-sm text-gray-500 max-w-sm">Añade imágenes o videos desde tu biblioteca o súbelos al instante desde el selector.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowMediaPicker(true)}
-                  className="mt-4 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
-                >
-                  Abrir selector de media
-                </button>
-              </div>
-            ) : (
-              <div className="p-3 sm:p-4">
-                <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">Arrastra el asa para reordenar · Usa las flechas si prefieres</p>
-                <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/40 overflow-hidden">
-                  {playlist.map((item, index) => (
-                    <li
-                      key={`${item.media_id}-${index}`}
-                      onDragOver={(e) => handlePlaylistRowDragOver(index, e)}
-                      onDragLeave={(e) => {
-                        if (!e.currentTarget.contains(e.relatedTarget)) setPlaylistDragOver(null);
-                      }}
-                      onDrop={(e) => handlePlaylistRowDrop(index, e)}
-                      className={`flex items-center gap-2 bg-white px-2 py-1.5 sm:gap-3 sm:px-3 sm:py-2 transition ${
-                        playlistDragOver === index ? 'ring-2 ring-inset ring-indigo-400 bg-indigo-50/30' : ''
-                      } ${playlistDragSource === index ? 'opacity-50' : ''}`}
-                    >
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <button
-                          type="button"
-                          draggable
-                          onDragStart={(e) => handlePlaylistDragStart(index, e)}
-                          onDragEnd={handlePlaylistDragEnd}
-                          className="cursor-grab touch-none rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing inline-flex border-0 bg-transparent leading-none"
-                          title="Arrastrar para reordenar"
-                          aria-label="Arrastrar para reordenar fila"
-                        >
-                          <IconGrip className="h-5 w-5" />
-                        </button>
-                        <div className="flex flex-col border-l border-gray-100 pl-0.5">
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, -1)}
-                            disabled={index === 0}
-                            className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-25"
-                            aria-label="Subir una posición"
-                          >
-                            <IconChevronUp className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveItem(index, 1)}
-                            disabled={index === playlist.length - 1}
-                            className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-25"
-                            aria-label="Bajar una posición"
-                          >
-                            <IconChevronDown className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-gray-400">{index + 1}</span>
-                      <div className="relative h-9 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100 ring-1 ring-black/5 sm:h-10 sm:w-16">
-                        {isVideoMedia(item) ? (
-                          <>
-                            <video src={item.url} className="h-full w-full object-cover" muted preload="metadata" playsInline />
-                            <span className="absolute left-0.5 top-0.5 rounded bg-black/70 px-1 py-px text-[8px] font-bold text-white">VIDEO</span>
-                          </>
-                        ) : (
-                          <img src={item.url} alt="" className="h-full w-full object-cover" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-800">{item.original_name}</p>
-                        {isVideoMedia(item) && (
-                          <p className="truncate text-[11px] text-indigo-600/90">Duración según archivo de video</p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {isVideoMedia(item) ? (
-                          <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800">Auto</span>
-                        ) : (
-                          <label className="flex items-center gap-1">
-                            <span className="sr-only">Duración en segundos</span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="300"
-                              value={item.duration}
-                              onChange={(e) => updateDuration(index, e.target.value)}
-                              className="w-14 rounded-md border border-gray-200 bg-white py-1 text-center text-sm font-medium text-gray-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                            />
-                            <span className="text-[11px] font-medium text-gray-500">seg</span>
-                          </label>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFromPlaylist(index)}
-                        className="shrink-0 rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-                        title="Quitar de la playlist"
-                        aria-label="Quitar de la playlist"
-                      >
-                        <IconTrash className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
+          ))}
         </div>
       </div>
 
-      {showMediaPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-2xl xl:max-w-5xl">
-            <div className="flex shrink-0 flex-col gap-3 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Seleccionar media</h3>
-                <p className="mt-0.5 text-xs text-gray-500">Elige archivos o súbelos con la zona inferior</p>
+      <div className="detail-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Reproduciendo ahora */}
+          <div className="card" style={{ padding: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+              Reproduciendo ahora
+            </div>
+            {nowPlaying ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 11, background: T.greenDim, border: `1px solid ${T.green}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, animation: 'pulse 2.5s ease-in-out infinite' }}>
+                  {isVideoMedia(nowPlaying) ? <Video size={17} color={T.green} /> : <ImageIcon size={17} color={T.green} />}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nowPlaying.original_name}</div>
+                  <div style={{ fontSize: 11, color: T.green, display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                    <PlayCircle size={10} /> {isVideoMedia(nowPlaying) ? 'Video' : 'Imagen'}
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.textMuted, fontSize: 12.5 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: T.inputBg, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ImageIcon size={14} color={T.textMuted} />
+                </div>
+                Sin contenido activo
+              </div>
+            )}
+          </div>
+
+          {/* URL del Player — Abrir player + Copiar (sin cambios de comportamiento) */}
+          <div className="card" style={{ padding: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.primary, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Globe size={10} /> URL del Player
+            </div>
+            <div style={{ background: T.inputBg, border: `1px solid ${copied ? T.green : T.border}`, borderRadius: 9, padding: '9px 12px', marginBottom: 9, transition: 'border-color .3s ease' }}>
+              <code style={{ fontSize: 11, color: T.textSub, fontFamily: FM, wordBreak: 'break-all', lineHeight: 1.5 }}>{playerUrl}</code>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="primary" onClick={openPlayerInNewTab} style={{ flex: 1, padding: '9px' }}>
+                <ExternalLink size={12} /> Abrir player
+              </Btn>
+              <Btn variant="secondary" accentColor={copied ? T.green : undefined} onClick={copyPlayerUrl} style={{ flex: 1, padding: '9px' }}>
+                <Copy size={12} /> {copied ? '¡Copiada!' : 'Copiar'}
+              </Btn>
+            </div>
+          </div>
+
+          {/* Información del dispositivo */}
+          <div className="card" style={{ padding: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+              Información del dispositivo
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                ['Nombre', screen.name],
+                ['Sede', screen.Venue?.name || '—'],
+                ['Device ID', screen.device_id, true],
+                ['Orientación', screen.orientation === 'portrait' ? 'Vertical' : 'Horizontal'],
+              ].map(([l, v, mono]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: T.textSub, flexShrink: 0 }}>{l}</span>
+                  <span style={{
+                    fontSize: 12.5, fontWeight: 600, color: mono ? T.primary : T.text,
+                    fontFamily: mono ? FM : 'inherit', background: mono ? T.primaryDim : 'transparent',
+                    padding: mono ? '1px 7px' : 0, borderRadius: mono ? 5 : 0,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {v}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Playlist */}
+        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', minHeight: 320 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FD }}>Playlist</div>
+              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{playlistQueueSubtitle(playlist.length)}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="secondary" size="sm" onClick={() => setShowMediaPicker(true)}>
+                <ImageIcon size={12} /> Agregar media
+              </Btn>
+              <Btn variant="primary" accentColor={T.green} size="sm" onClick={savePlaylist}>
+                <Zap size={12} /> Guardar y publicar
+              </Btn>
+            </div>
+          </div>
+
+          {playlist.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 13, border: `2px dashed ${T.border}`, padding: '44px 22px', background: T.primaryDim + '50' }}>
+              <div style={{ width: 60, height: 60, borderRadius: 16, background: T.primaryDim, border: `1px solid ${T.primary}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, animation: 'float 3s ease-in-out infinite' }}>
+                <ImageIcon size={24} color={T.primary} strokeWidth={1.4} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6, fontFamily: FD }}>Sin contenido asignado</div>
+              <div style={{ fontSize: 12.5, color: T.textSub, textAlign: 'center', lineHeight: 1.7, maxWidth: 280, marginBottom: 20 }}>
+                Añade imágenes o videos desde tu biblioteca de media.
+              </div>
+              <Btn variant="primary" onClick={() => setShowMediaPicker(true)}>Abrir selector de media</Btn>
+            </div>
+          ) : (
+            <div>
+              <p style={{ marginBottom: 8, padding: '0 2px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', color: T.textMuted }}>
+                Arrastra el asa para reordenar · Usa las flechas si prefieres
+              </p>
+              <div style={{ borderRadius: 13, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+                {playlist.map((item, index) => (
+                  <div
+                    key={`${item.media_id}-${index}`}
+                    onDragOver={(e) => handlePlaylistRowDragOver(index, e)}
+                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPlaylistDragOver(null); }}
+                    onDrop={(e) => handlePlaylistRowDrop(index, e)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                      background: playlistDragOver === index ? T.primaryDim : T.surface,
+                      borderBottom: index < playlist.length - 1 ? `1px solid ${T.border}` : 'none',
+                      opacity: playlistDragSource === index ? 0.5 : 1,
+                      transition: 'background .15s ease, opacity .15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={(e) => handlePlaylistDragStart(index, e)}
+                        onDragEnd={handlePlaylistDragEnd}
+                        title="Arrastrar para reordenar"
+                        aria-label="Arrastrar para reordenar fila"
+                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textMuted, cursor: 'grab', padding: 6, borderRadius: 6 }}
+                      >
+                        <GripVertical size={16} />
+                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} aria-label="Subir" style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.25 : 1, display: 'flex', padding: 1 }}>
+                          <ChevronUp size={13} />
+                        </button>
+                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === playlist.length - 1} aria-label="Bajar" style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: index === playlist.length - 1 ? 'default' : 'pointer', opacity: index === playlist.length - 1 ? 0.25 : 1, display: 'flex', padding: 1 }}>
+                          <ChevronDown size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <span style={{ width: 18, textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, flexShrink: 0 }}>{index + 1}</span>
+                    <div style={{ position: 'relative', width: 72, height: 48, borderRadius: 10, overflow: 'hidden', background: T.inputBg, flexShrink: 0, border: `1px solid ${T.border}` }}>
+                      {isVideoMedia(item) ? (
+                        <>
+                          <video src={item.url} className="h-full w-full object-cover" muted preload="metadata" playsInline />
+                          <span style={{ position: 'absolute', left: 4, top: 4, borderRadius: 4, background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 8.5, fontWeight: 700, padding: '1px 5px' }}>VIDEO</span>
+                        </>
+                      ) : (
+                        <img src={item.url} alt="" className="h-full w-full object-cover" />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: T.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.original_name}</p>
+                      {isVideoMedia(item) && <p style={{ fontSize: 11, color: T.primary, margin: 0 }}>Duración según archivo de video</p>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {isVideoMedia(item) ? (
+                        <span style={{ borderRadius: 6, border: `1px solid ${T.primary}33`, background: T.primaryDim, padding: '3px 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: T.primary }}>Auto</span>
+                      ) : (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="300"
+                            value={item.duration}
+                            onChange={(e) => updateDuration(index, e.target.value)}
+                            style={{ width: 48, borderRadius: 7, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text, textAlign: 'center', fontSize: 12.5, fontWeight: 600, padding: '4px 2px' }}
+                          />
+                          <span style={{ fontSize: 10.5, color: T.textMuted }}>seg</span>
+                        </label>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeFromPlaylist(index)}
+                        title="Quitar de la playlist"
+                        aria-label="Quitar de la playlist"
+                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textMuted, cursor: 'pointer', padding: 7, borderRadius: 8, transition: 'color .15s ease, background .15s ease' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = T.red; e.currentTarget.style.background = T.redDim; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = T.textMuted; e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Selector de media — portal a document.body: si viviera dentro del
+          árbol de la página, el transform que deja la animación de .enter
+          lo convertiría en containing block y el modal quedaría pegado
+          arriba del scroll en vez de centrado en el viewport real. */}
+      {showMediaPicker && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => setShowMediaPicker(false)} style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(14px)', animation: 'fadeIn .2s ease both' }} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 880, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: T.modalBg, borderRadius: 19, border: `1px solid ${T.border}`, boxShadow: '0 32px 80px -16px rgba(0,0,0,.7)', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 22px', borderBottom: `1px solid ${T.border}`, flexShrink: 0, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FD }}>Seleccionar media</div>
+                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Elige archivos o súbelos con la zona inferior</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn variant="primary" onClick={addSelectedToPlaylist}>Agregar seleccionados ({selectedMediaIds.length})</Btn>
                 <button
-                  type="button"
-                  onClick={addSelectedToPlaylist}
-                  className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                  onClick={() => { setSelectedMediaIds([]); setShowMediaPicker(false); }}
+                  style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${T.border}`, background: T.inputBg, color: T.textSub, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                 >
-                  Agregar seleccionados ({selectedMediaIds.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedMediaIds([]);
-                    setShowMediaPicker(false);
-                  }}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
-                >
-                  Cerrar
+                  <X size={14} />
                 </button>
               </div>
             </div>
-            <div className="flex flex-1 flex-col overflow-hidden p-5 pt-4">
-            <div className="shrink-0 mb-3">
+
+            <div style={{ padding: '16px 22px', overflowY: 'auto', flex: 1 }}>
               <input
                 ref={pickerFileInputRef}
                 type="file"
                 multiple
                 accept="image/*,video/*"
-                className="hidden"
+                style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
                 onChange={(e) => uploadPickerFiles(e.target.files)}
               />
               <button
                 type="button"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setPickerDragActive(true);
-                }}
+                onDragOver={(e) => { e.preventDefault(); setPickerDragActive(true); }}
                 onDragLeave={() => setPickerDragActive(false)}
                 onDrop={handlePickerDrop}
-                onClick={() => {
-                  if (pickerUploading) return;
-                  pickerFileInputRef.current?.click();
-                }}
+                onClick={() => { if (!pickerUploading) pickerFileInputRef.current?.click(); }}
                 disabled={pickerUploading}
-                className={`w-full rounded-xl border-2 border-dashed px-4 py-3 text-center cursor-pointer transition-all ${
-                  pickerDragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
-                } ${pickerUploading ? 'opacity-70 cursor-wait' : ''}`}
+                style={{
+                  width: '100%', borderRadius: 13, border: `2px dashed ${pickerDragActive ? T.primary : T.border}`,
+                  background: pickerDragActive ? T.primaryDim : 'transparent', padding: '18px 14px', textAlign: 'center',
+                  cursor: pickerUploading ? 'wait' : 'pointer', marginBottom: 16, transition: 'all .2s ease',
+                }}
               >
                 {pickerUploading ? (
-                  <p className="text-sm text-gray-600">Subiendo...</p>
+                  <p style={{ fontSize: 13, color: T.textSub, margin: 0 }}>Subiendo...</p>
                 ) : (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Arrastra archivos aquí o haz clic para subir</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Imágenes y videos (incl. MOV, MP4…), máx. 50 MB</p>
-                  </div>
+                  <>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Arrastra archivos aquí o haz clic para subir</p>
+                    <p style={{ fontSize: 11.5, color: T.textMuted, marginTop: 3 }}>Imágenes y videos (incl. MOV, MP4…), máx. 50 MB</p>
+                  </>
                 )}
               </button>
-            </div>
-            <div className="flex-1 overflow-auto min-h-0">
+
               {allMedia.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="text-gray-500 text-sm">No hay más archivos en la biblioteca</p>
-                  <p className="text-gray-400 text-xs mt-1">Usa la zona de arriba para agregar el primero</p>
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>No hay más archivos en la biblioteca</p>
+                  <p style={{ fontSize: 11.5, color: T.textMuted, marginTop: 4 }}>Usa la zona de arriba para agregar el primero</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
                   {allMedia.map((item) => {
                     const inPlaylist = playlist.some((p) => p.media_id === item.id);
                     const isSelected = selectedMediaIds.includes(item.id);
-                    let cardClass = 'border-gray-200 hover:border-indigo-500 hover:shadow-md cursor-pointer';
-                    if (inPlaylist) {
-                      cardClass = 'border-green-300 opacity-50 cursor-not-allowed';
-                    } else if (isSelected) {
-                      cardClass = 'border-indigo-500 ring-2 ring-indigo-200 cursor-pointer';
-                    }
+                    const borderColor = inPlaylist ? T.green + '55' : isSelected ? T.primary : T.border;
                     return (
                       <button
                         key={item.id}
                         onClick={() => toggleMediaSelection(item.id)}
                         disabled={inPlaylist}
-                        className={`rounded-lg overflow-hidden border-2 transition-all text-left ${cardClass}`}
+                        style={{
+                          textAlign: 'left', borderRadius: 12, border: `1.5px solid ${borderColor}`,
+                          overflow: 'hidden', background: T.surface, cursor: inPlaylist ? 'not-allowed' : 'pointer',
+                          opacity: inPlaylist ? 0.5 : 1, boxShadow: isSelected ? `0 0 0 3px ${T.primaryDim}` : 'none',
+                          transition: 'all .18s ease',
+                        }}
                       >
-                        <div className="aspect-video bg-gray-100">
+                        <div style={{ aspectRatio: '16/9', background: T.inputBg, position: 'relative' }}>
                           {isVideoMedia(item) ? (
-                            <div className="w-full h-full relative">
-                              <video
-                                src={item.url}
-                                className="w-full h-full object-cover"
-                                muted
-                                preload="metadata"
-                                playsInline
-                              />
-                              <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
-                                VIDEO
-                              </div>
-                            </div>
+                            <>
+                              <video src={item.url} className="h-full w-full object-cover" muted preload="metadata" playsInline />
+                              <span style={{ position: 'absolute', left: 5, top: 5, borderRadius: 5, background: 'rgba(0,0,0,.65)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 5px' }}>VIDEO</span>
+                            </>
                           ) : (
-                            <img src={item.url} alt="" className="w-full h-full object-cover" />
+                            <img src={item.url} alt="" className="h-full w-full object-cover" />
                           )}
                         </div>
-                        <div className="p-2">
-                          <p className="text-xs truncate text-gray-700">{item.original_name}</p>
-                          {isVideoMedia(item) && <p className="text-xs text-indigo-600">Reproduce completo</p>}
-                          {inPlaylist && <p className="text-xs text-green-600">Ya agregado</p>}
-                          {!inPlaylist && isSelected && (
-                            <p className="text-xs text-indigo-600">Seleccionado</p>
-                          )}
+                        <div style={{ padding: '8px 9px' }}>
+                          <p style={{ fontSize: 11.5, color: T.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.original_name}</p>
+                          {inPlaylist && <p style={{ fontSize: 10.5, color: T.green, margin: '2px 0 0' }}>Ya agregado</p>}
+                          {!inPlaylist && isSelected && <p style={{ fontSize: 10.5, color: T.primary, margin: '2px 0 0' }}>Seleccionado</p>}
                         </div>
                       </button>
                     );
@@ -741,9 +670,9 @@ export default function ScreenDetail() {
                 </div>
               )}
             </div>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
     </div>
   );

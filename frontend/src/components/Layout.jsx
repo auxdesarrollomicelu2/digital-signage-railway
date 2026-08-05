@@ -1,91 +1,90 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
+  LayoutDashboard, Monitor, Building2, Image as ImageIcon,
+  Users, ShieldCheck, ChevronRight, LogOut,
+} from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import usePermissions from '../hooks/usePermissions';
+import { useTheme } from '../context/ThemeContext';
+import Backdrop from './Backdrop';
+import ClickSpark from './ClickSpark';
+import { FD, FB } from '../styles/tokens';
 
 const SIDEBAR_KEY = 'ds_sidebar_collapsed';
 
-function IconHome({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7A1 1 0 004 11h1v6a1 1 0 001 1h3v-4a1 1 0 011-1h2a1 1 0 011 1v4h3a1 1 0 001-1v-6h1a1 1 0 00.707-1.707l-7-7z" />
-    </svg>
-  );
-}
-
-function IconVenues({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-2a1 1 0 01-1-1v-1H5v1a1 1 0 01-1 1H2a1 1 0 110-2V4zm3 1h2v4H7V5zm8 8v2h2v-2h-2zM5 5v2h2V5H5zm5 0v2h2V5h-2zm5 0h-2v2h2V5zm-5 4h2v4h-2V9zm5 4h2V9h-2v4zM7 9v4h2V9H7z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconScreens({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconMedia({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconLogout({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconChevronLeft({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function IconChevronRight({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
+// Mismas rutas y roles reales que antes — solo cambia el ícono/estilo (copia del mockup ControlCenter V3)
 const navItems = [
-  { to: '/', label: 'Dashboard', Icon: IconHome },
-  { to: '/venues', label: 'Sedes', Icon: IconVenues },
-  { to: '/screens', label: 'Pantallas', Icon: IconScreens },
-  { to: '/media', label: 'Media', Icon: IconMedia },
+  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, end: true },
+  { to: '/screens', label: 'Pantallas', Icon: Monitor },
+  { to: '/venues', label: 'Sedes', Icon: Building2 },
+  { to: '/media', label: 'Media', Icon: ImageIcon },
 ];
 
-// Items exclusivos para Super Admin
 const adminNavItems = [
-  { to: '/admin/companies', label: 'Empresas', Icon: IconVenues, adminOnly: true },
-  { 
-    to: '/admin/audit', 
-    label: 'Auditoría', 
-    Icon: ({ className }) => (
-      <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-      </svg>
-    ), 
-    adminOnly: true 
-  },
+  { to: '/admin/companies', label: 'Empresas', Icon: Users },
+  { to: '/admin/audit', label: 'Auditoría', Icon: ShieldCheck },
 ];
+
+function NavItem({ to, label, Icon, end, collapsed, T, sp }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <NavLink to={to} end={end} title={collapsed ? label : undefined} style={{ textDecoration: 'none' }}>
+      {({ isActive }) => (
+        <motion.div
+          onMouseEnter={() => setHov(true)}
+          onMouseLeave={() => setHov(false)}
+          whileTap={{ scale: 0.97 }}
+          animate={{ x: hov && !isActive ? 2 : 0 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: collapsed ? '11px 0' : '10px 12px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            borderRadius: 11, marginBottom: 2, position: 'relative', overflow: 'hidden',
+            background: isActive ? `${sp}1c` : hov ? 'rgba(255,255,255,.05)' : 'transparent',
+            color: isActive ? sp : hov ? 'rgba(255,255,255,.88)' : 'rgba(255,255,255,.48)',
+            transition: 'background .18s ease, color .18s ease',
+          }}
+        >
+          {isActive && (
+            <motion.span
+              layoutId="sidebar-active-indicator"
+              transition={{ type: 'spring', stiffness: 500, damping: 36 }}
+              style={{
+                position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+                width: 2.5, height: 16, borderRadius: '0 3px 3px 0', background: sp, boxShadow: `0 0 10px ${sp}`,
+              }}
+            />
+          )}
+          <div style={{ transform: isActive ? 'scale(1.08)' : 'scale(1)', transition: 'transform .18s ease', flexShrink: 0, filter: isActive ? `drop-shadow(0 0 5px ${sp}88)` : 'none' }}>
+            <Icon size={17} strokeWidth={isActive ? 2.1 : 1.7} />
+          </div>
+          {!collapsed && (
+            <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, letterSpacing: isActive ? '-.01em' : 0, fontFamily: FB, whiteSpace: 'nowrap' }}>
+              {label}
+            </span>
+          )}
+          {collapsed && hov && (
+            <div style={{
+              position: 'absolute', left: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)',
+              background: T.surface, border: `1px solid ${sp}44`, borderRadius: 9, padding: '6px 11px',
+              fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', boxShadow: T.cardShadow, zIndex: 50,
+            }}>
+              {label}
+            </div>
+          )}
+        </motion.div>
+      )}
+    </NavLink>
+  );
+}
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { isSuperAdmin } = usePermissions();
+  const { T } = useTheme();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -112,130 +111,174 @@ export default function Layout({ children }) {
     navigate('/login');
   };
 
+  const initials = (user?.username ?? '?').slice(0, 2).toUpperCase();
+  const sp = T.primary;
+
   return (
-    <div className="flex h-screen overflow-hidden">
+    <ClickSpark sparkColor={sp} sparkSize={10} sparkRadius={18} sparkCount={8} duration={450}>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: FB, position: 'relative', overflow: 'hidden' }}>
+      <Backdrop />
+
       <aside
-        className={`flex shrink-0 flex-col border-r border-gray-800 bg-gray-900 text-white transition-[width] duration-200 ease-out ${
-          collapsed ? 'w-[52px]' : 'w-[13.5rem]'
-        }`}
+        style={{
+          position: 'fixed', top: 0, left: 0, height: '100vh', flexShrink: 0, zIndex: 20,
+          display: 'flex', flexDirection: 'column', background: T.sidebarBg,
+          borderRight: '1px solid rgba(255,255,255,.06)',
+          width: collapsed ? 72 : 220, minWidth: collapsed ? 72 : 220,
+          transition: 'width .38s cubic-bezier(.22,1,.36,1), min-width .38s cubic-bezier(.22,1,.36,1)',
+          overflowY: 'auto', overflowX: 'hidden',
+        }}
       >
-        <div className={`flex shrink-0 items-center gap-2 border-b border-gray-800 ${collapsed ? 'flex-col px-1 py-2' : 'px-3 py-3'}`}>
+        <div style={{ height: 1.5, background: `linear-gradient(90deg, transparent, ${sp}88, transparent)`, flexShrink: 0 }} />
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 11,
+            padding: collapsed ? '20px 0' : '20px 16px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            borderBottom: '1px solid rgba(255,255,255,.05)',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src="/isotipo.png"
+            alt="Digital Signage"
+            style={{
+              width: 50, height: 50, flexShrink: 0, objectFit: 'contain',
+              filter: `drop-shadow(0 0 8px ${sp}77)`,
+            }}
+          />
           {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xs font-bold leading-tight tracking-tight text-white" title="Digital Signage Micelu">
-                Digital Signage Micelu
-              </h1>
-              <p className="mt-0.5 text-[10px] text-gray-500">Panel de control</p>
+            <div style={{ lineHeight: 1.2, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-.01em', fontFamily: FD, whiteSpace: 'nowrap' }}>
+                Digital Signage
+              </div>
+              <div style={{ fontSize: 10, color: sp, opacity: .8 }}>Panel de control</div>
             </div>
+          )}
+        </div>
+
+        <nav style={{ padding: '12px 10px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+          {navItems.map((item) => (
+            <NavItem key={item.to} {...item} collapsed={collapsed} T={T} sp={sp} />
+          ))}
+
+          {isSuperAdmin && (
+            <>
+              {!collapsed ? (
+                <div style={{
+                  fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.25)',
+                  letterSpacing: '.12em', textTransform: 'uppercase', padding: '14px 6px 5px',
+                  borderTop: '1px solid rgba(255,255,255,.05)', marginTop: 6,
+                }}>
+                  Administración
+                </div>
+              ) : (
+                <div style={{ height: 1, background: 'rgba(255,255,255,.06)', margin: '10px 6px' }} />
+              )}
+              {adminNavItems.map((item) => (
+                <NavItem key={item.to} {...item} collapsed={collapsed} T={T} sp={sp} />
+              ))}
+            </>
+          )}
+        </nav>
+
+        <div style={{ padding: '10px 10px 14px', borderTop: '1px solid rgba(255,255,255,.05)', flexShrink: 0 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 9,
+            padding: collapsed ? '8px 0' : '8px 10px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+          }}>
+            <span style={{
+              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, color: '#050F0C',
+              background: `linear-gradient(135deg, ${sp}, #00A885)`,
+            }}>
+              {initials}
+            </span>
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12.5, fontWeight: 600, color: '#fff',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {user?.username}
+                </div>
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.35)', whiteSpace: 'nowrap' }}>
+                  {user?.role}
+                </div>
+              </div>
+            )}
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Salir"
+                title="Salir"
+                style={{
+                  background: 'transparent', border: 'none', color: 'rgba(255,255,255,.3)',
+                  cursor: 'pointer', display: 'flex', flexShrink: 0, transition: 'color .15s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = T.red; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,.3)'; }}
+              >
+                <LogOut size={14} />
+              </button>
+            )}
+          </div>
+          {collapsed && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Salir"
+              title="Salir"
+              style={{
+                width: '100%', display: 'flex', justifyContent: 'center', marginTop: 4,
+                background: 'transparent', border: 'none', color: 'rgba(255,255,255,.3)',
+                cursor: 'pointer', padding: '6px 0',
+              }}
+            >
+              <LogOut size={14} />
+            </button>
           )}
           <button
             type="button"
             onClick={toggleCollapsed}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-800 hover:text-white ${
-              collapsed ? '' : 'ml-auto'
-            }`}
             aria-expanded={!collapsed}
             aria-label={collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-start', gap: 8,
+              padding: collapsed ? '7px 0' : '7px 10px', borderRadius: 9,
+              border: 'none', background: 'transparent', color: 'rgba(255,255,255,.25)',
+              cursor: 'pointer', fontSize: 11.5, fontWeight: 500, fontFamily: FB, marginTop: 4,
+              transition: 'all .15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,.6)'; e.currentTarget.style.background = 'rgba(255,255,255,.05)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,.25)'; e.currentTarget.style.background = 'transparent'; }}
           >
-            {collapsed ? <IconChevronRight className="h-4 w-4" /> : <IconChevronLeft className="h-4 w-4" />}
+            <ChevronRight
+              size={14}
+              style={{ transition: 'transform .3s ease', transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+            />
+            {!collapsed && 'Contraer'}
           </button>
-        </div>
-
-        <nav className={`flex-1 space-y-0.5 overflow-y-auto ${collapsed ? 'px-1 py-2' : 'px-2 py-2'}`}>
-          {/* Items comunes para todos los roles */}
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                `flex items-center rounded-lg text-sm font-medium transition-colors ${
-                  collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-2.5 py-2'
-                } ${
-                  isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`
-              }
-            >
-              <item.Icon className={`shrink-0 ${collapsed ? 'h-5 w-5' : 'h-[18px] w-[18px] opacity-90'}`} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          ))}
-
-          {/* Separador si es super admin */}
-          {isSuperAdmin && (
-            <div className={`${collapsed ? 'px-1 py-2' : 'px-2 py-2'}`}>
-              <div className="border-t border-gray-800"></div>
-              {!collapsed && (
-                <p className="mt-3 mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  Administración
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Items exclusivos para Super Admin */}
-          {isSuperAdmin && adminNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                `flex items-center rounded-lg text-sm font-medium transition-colors ${
-                  collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-2.5 py-2'
-                } ${
-                  isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`
-              }
-            >
-              <item.Icon className={`shrink-0 ${collapsed ? 'h-5 w-5' : 'h-[18px] w-[18px] opacity-90'}`} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className={`shrink-0 border-t border-gray-800 ${collapsed ? 'px-1 py-2' : 'px-2 py-2'}`}>
-          {collapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-[10px] font-semibold uppercase text-gray-300"
-                title={user?.username ?? ''}
-              >
-                {(user?.username ?? '?').slice(0, 1)}
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-800 hover:text-red-400"
-                title="Salir"
-                aria-label="Salir"
-              >
-                <IconLogout className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-lg bg-gray-800/50 px-2 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-gray-200">{user?.username}</p>
-                <p className="truncate text-[10px] text-gray-500">{user?.role}</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-gray-400 transition hover:bg-gray-700 hover:text-red-400"
-              >
-                Salir
-              </button>
-            </div>
-          )}
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-auto bg-gray-50 px-4 py-6 sm:px-5 sm:py-7 lg:px-6 lg:py-8">{children}</main>
+      <div
+        style={{
+          flex: 1, minWidth: 0, maxWidth: '100%', position: 'relative', zIndex: 1,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          marginLeft: collapsed ? 72 : 220,
+          transition: 'margin-left .38s cubic-bezier(.22,1,.36,1)',
+        }}
+      >
+        <main style={{ padding: '28px 24px 96px', width: '100%', flex: 1, overflowX: 'hidden', overflowY: 'auto' }}>
+          {children}
+        </main>
+      </div>
     </div>
+    </ClickSpark>
   );
 }

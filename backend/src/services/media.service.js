@@ -171,6 +171,30 @@ const uploadMediaFiles = async (files, uploadData, userPermissions) => {
   };
 };
 
+const renameMediaFile = async (mediaId, newName, userPermissions) => {
+  const { role, companyId } = userPermissions;
+
+  const media = await Media.findByPk(mediaId);
+
+  if (!media) {
+    throw new Error('Archivo no encontrado');
+  }
+
+  if (role !== 'super_admin' && media.company_id !== companyId) {
+    throw new Error('No tienes permiso para modificar este archivo');
+  }
+
+  const trimmedName = String(newName || '').trim();
+  if (!trimmedName) {
+    throw new Error('El nombre no puede estar vacío');
+  }
+
+  media.original_name = trimmedName;
+  await media.save();
+
+  return media;
+};
+
 const deleteMediaFile = async (mediaId, userPermissions) => {
   const { role, companyId } = userPermissions;
 
@@ -286,6 +310,7 @@ module.exports = {
   listMedia,
   getMediaById,
   uploadMediaFiles,
+  renameMediaFile,
   deleteMediaFile,
   getMediaStatistics,
 };
