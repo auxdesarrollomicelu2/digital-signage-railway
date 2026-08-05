@@ -7,8 +7,14 @@ const HOST = params.get('host') || globalThis.location.hostname || 'localhost';
 const API_PORT = params.get('api_port') || '3000';
 const MQTT_PORT = params.get('mqtt_port') || '8083';
 const MQTT_PATH = params.get('mqtt_path') || '/mqtt';
-const API_URL = `http://${HOST}:${API_PORT}`;
-const MQTT_URL = `ws://${HOST}:${MQTT_PORT}${MQTT_PATH}`;
+
+// Auto-detección de protocolo según HTTPS (Railway) vs HTTP (Azure/Local)
+const isSecure = globalThis.location.protocol === 'https:';
+const wsProtocol = isSecure ? 'wss:' : 'ws:';
+const httpProtocol = isSecure ? 'https:' : 'http:';
+
+const API_URL = `${httpProtocol}//${HOST}:${API_PORT}`;
+const MQTT_URL = `${wsProtocol}//${HOST}:${MQTT_PORT}${MQTT_PATH}`;
 const PLAYLIST_API_URL = `${API_URL}/api/screens/by-device/${encodeURIComponent(DEVICE_ID)}/playlist`;
 const PLAYLIST_STORAGE_KEY = `signage:playlist:${DEVICE_ID}`;
 const MEDIA_CACHE_NAME = 'signage-media-v1';
@@ -239,6 +245,12 @@ export default function App() {
 
   useEffect(() => {
     console.log('[Player] Endpoints', { DEVICE_ID, API_URL, MQTT_URL });
+    console.log('[Player] Detección de protocolo:', { 
+      isSecure, 
+      wsProtocol, 
+      httpProtocol,
+      pageProtocol: globalThis.location.protocol 
+    });
 
     const client = mqtt.connect(MQTT_URL, {
       clientId: `player-${DEVICE_ID}-${Date.now()}`,

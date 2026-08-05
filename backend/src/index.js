@@ -11,10 +11,33 @@ require('./models');
 
 const app = express();
 
+// CORS configurado para producción Railway
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.PLAYER_URL,
+].filter(Boolean);
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (mobile apps, Postman, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // En desarrollo, permitir cualquier origen
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // En producción, verificar lista de orígenes permitidos
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origen rechazado: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 app.use(express.json());
 
