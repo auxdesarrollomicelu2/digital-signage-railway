@@ -3,18 +3,48 @@ import mqtt from 'mqtt';
 
 const params = new URLSearchParams(globalThis.location.search);
 const DEVICE_ID = params.get('deviceId') || params.get('device') || 'screen-001';
-const HOST = params.get('host') || globalThis.location.hostname || 'localhost';
-const API_PORT = params.get('api_port') || '3000';
-const MQTT_PORT = params.get('mqtt_port') || '8083';
-const MQTT_PATH = params.get('mqtt_path') || '/mqtt';
 
 // Auto-detección de protocolo según HTTPS (Railway) vs HTTP (Azure/Local)
 const isSecure = globalThis.location.protocol === 'https:';
 const wsProtocol = isSecure ? 'wss:' : 'ws:';
 const httpProtocol = isSecure ? 'https:' : 'http:';
 
-const API_URL = `${httpProtocol}//${HOST}:${API_PORT}`;
-const MQTT_URL = `${wsProtocol}//${HOST}:${MQTT_PORT}${MQTT_PATH}`;
+// Detección automática de ambiente
+const currentHost = globalThis.location.hostname;
+const isRailway = currentHost.includes('railway.app');
+const isLocalhost = currentHost === 'localhost' || currentHost === '127.0.0.1';
+
+// Configuración por ambiente
+let API_HOST, MQTT_HOST, API_PORT, MQTT_PORT, MQTT_PATH;
+
+if (isRailway) {
+  // Railway: usar hostnames específicos de cada servicio
+  API_HOST = 'digital-signage-railway-production.up.railway.app';
+  MQTT_HOST = 'emqx-production-b599.up.railway.app';
+  API_PORT = ''; // Railway usa puertos estándar (80/443)
+  MQTT_PORT = '8083';
+  MQTT_PATH = '/mqtt';
+} else if (isLocalhost) {
+  // Desarrollo local
+  API_HOST = params.get('host') || 'localhost';
+  MQTT_HOST = params.get('mqtt_host') || 'localhost';
+  API_PORT = params.get('api_port') || '3000';
+  MQTT_PORT = params.get('mqtt_port') || '8083';
+  MQTT_PATH = params.get('mqtt_path') || '/mqtt';
+} else {
+  // Azure u otro (usa parámetros o defaults)
+  API_HOST = params.get('host') || currentHost;
+  MQTT_HOST = params.get('mqtt_host') || params.get('host') || currentHost;
+  API_PORT = params.get('api_port') || '3000';
+  MQTT_PORT = params.get('mqtt_port') || '8083';
+  MQTT_PATH = params.get('mqtt_path') || '/mqtt';
+}
+
+// Construir URLs
+const API_URL = API_PORT 
+  ? `${httpProtocol}//${API_HOST}:${API_PORT}` 
+  : `${httpProtocol}//${API_HOST}`;
+const MQTT_URL = `${wsProtocol}//${MQTT_HOST}:${MQTT_PORT}${MQTT_PATH}`;
 const PLAYLIST_API_URL = `${API_URL}/api/screens/by-device/${encodeURIComponent(DEVICE_ID)}/playlist`;
 const PLAYLIST_STORAGE_KEY = `signage:playlist:${DEVICE_ID}`;
 const MEDIA_CACHE_NAME = 'signage-media-v1';
