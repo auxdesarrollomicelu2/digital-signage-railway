@@ -351,12 +351,15 @@ export default function ScreenDetail() {
     const host = window.location.hostname;
     const isLocalhost = host === 'localhost' || host === '127.0.0.1';
     
-    // En desarrollo local, usar localhost:5174
-    // En producción, usar el mismo host con puerto 5174
-    const playerHost = isLocalhost ? 'localhost' : host;
-    const playerPort = 5174;
-    
-    return `http://${playerHost}:${playerPort}/?device=${screen.device_id}`;
+    if (isLocalhost) {
+      // Desarrollo local: usar localhost con puerto 5174
+      return `http://localhost:5174/?device=${screen.device_id}`;
+    } else {
+      // Producción Railway: usar dominio específico del player con HTTPS
+      // Detectar si estamos en Railway (frontend-production) y usar player-production
+      const playerHost = host.replace('frontend-production', 'player-production');
+      return `https://${playerHost}/?device=${screen.device_id}`;
+    }
   };
 
   const playerUrl = getPlayerUrl();
