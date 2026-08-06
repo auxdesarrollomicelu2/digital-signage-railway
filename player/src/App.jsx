@@ -22,7 +22,7 @@ if (isRailway) {
   API_HOST = 'digital-signage-railway-production.up.railway.app';
   MQTT_HOST = 'emqx-production-8f50.up.railway.app';
   API_PORT = ''; // Railway usa puertos estándar (80/443)
-  MQTT_PORT = '8084';
+  MQTT_PORT = '';
   MQTT_PATH = '/mqtt';
 } else if (isLocalhost) {
   // Desarrollo local
@@ -44,7 +44,9 @@ if (isRailway) {
 const API_URL = API_PORT 
   ? `${httpProtocol}//${API_HOST}:${API_PORT}` 
   : `${httpProtocol}//${API_HOST}`;
-const MQTT_URL = `${wsProtocol}//${MQTT_HOST}:${MQTT_PORT}${MQTT_PATH}`;
+const MQTT_URL = MQTT_PORT
+  ? `${wsProtocol}//${MQTT_HOST}:${MQTT_PORT}${MQTT_PATH}`
+  : `${wsProtocol}//${MQTT_HOST}${MQTT_PATH}`;
 const PLAYLIST_API_URL = `${API_URL}/api/screens/by-device/${encodeURIComponent(DEVICE_ID)}/playlist`;
 const PLAYLIST_STORAGE_KEY = `signage:playlist:${DEVICE_ID}`;
 const MEDIA_CACHE_NAME = 'signage-media-v1';
