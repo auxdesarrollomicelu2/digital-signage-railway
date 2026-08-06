@@ -20,9 +20,9 @@ let API_HOST, MQTT_HOST, API_PORT, MQTT_PORT, MQTT_PATH;
 if (isRailway) {
   // Railway: usar hostnames específicos de cada servicio
   API_HOST = 'digital-signage-railway-production.up.railway.app';
-  MQTT_HOST = 'emqx-production-835f.up.railway.app';
+  MQTT_HOST = 'emqx-production-8f50.up.railway.app';
   API_PORT = ''; // Railway usa puertos estándar (80/443)
-  MQTT_PORT = '8083';
+  MQTT_PORT = '8084';
   MQTT_PATH = '/mqtt';
 } else if (isLocalhost) {
   // Desarrollo local
