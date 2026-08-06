@@ -136,8 +136,8 @@ export default function VenueCard({ venue: v, empresaName, onViewScreens, onEdit
         }}
       >
         <button type="button" title="Ver pantallas" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewScreens(); }} style={glassBtn({})}
-          onMouseEnter={(e) => { e.currentTarget.style.background = `${color}55`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; }}>
+          onMouseEnter={(e) => { e.currentTarget.style.background = `${color}55`; e.currentTarget.style.borderColor = `${color}88`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.22)'; }}>
           <Eye size={13} />
         </button>
         {/* <label htmlFor=...> es el mecanismo nativo del navegador para
@@ -149,19 +149,19 @@ export default function VenueCard({ venue: v, empresaName, onViewScreens, onEdit
           title="Cambiar foto"
           onClick={(e) => e.stopPropagation()}
           style={glassBtn({})}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.2)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.85)'; e.currentTarget.style.color = '#0a0d12'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; e.currentTarget.style.color = '#fff'; }}
         >
           {uploading ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
         </label>
         <button type="button" title="Editar sede" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(); }} style={glassBtn({})}
-          onMouseEnter={(e) => { e.currentTarget.style.background = `${T.blue}55`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; }}>
+          onMouseEnter={(e) => { e.currentTarget.style.background = `${T.blue}55`; e.currentTarget.style.borderColor = `${T.blue}88`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.22)'; }}>
           <Pencil size={13} />
         </button>
         <button type="button" title="Eliminar sede" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} style={glassBtn({})}
-          onMouseEnter={(e) => { e.currentTarget.style.background = `${T.red}55`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; }}>
+          onMouseEnter={(e) => { e.currentTarget.style.background = `${T.red}55`; e.currentTarget.style.borderColor = `${T.red}88`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.22)'; }}>
           <Trash2 size={13} />
         </button>
       </div>

@@ -1,7 +1,7 @@
 import Modal from './Modal';
 import Btn from './Btn';
 import Input from '../ui/Input';
-import Select from '../ui/Select';
+import FormSelect from './FormSelect';
 import { useTheme } from '../../context/ThemeContext';
 
 /**
@@ -20,7 +20,7 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
     >
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Input
-          label="Nombre *"
+          label="Nombre"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           placeholder="Ej: Pantalla Recepción"
@@ -28,7 +28,7 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
           variant="dark"
         />
         <Input
-          label="Device ID *"
+          label="Device ID"
           value={form.device_id}
           onChange={(e) => setForm({ ...form, device_id: e.target.value })}
           placeholder="Ej: screen-005"
@@ -36,15 +36,15 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
           required
           variant="dark"
         />
-        <Select
+        <FormSelect
           label="Sede"
+          required
           value={form.venue_id}
           onChange={(v) => setForm({ ...form, venue_id: v })}
           options={venues.map((v) => ({ value: String(v.id), label: v.name }))}
-          placeholder="Sin sede"
-          variant="dark"
+          placeholder="Seleccionar sede"
         />
-        <Select
+        <FormSelect
           label="Orientación"
           value={form.orientation}
           onChange={(v) => setForm({ ...form, orientation: v })}
@@ -52,7 +52,6 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
             { value: 'landscape', label: 'Horizontal (Landscape)' },
             { value: 'portrait', label: 'Vertical (Portrait)' },
           ]}
-          variant="dark"
         />
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <Btn variant="secondary" onClick={onClose} type="button" style={{ flex: 1, padding: '11px' }}>Cancelar</Btn>

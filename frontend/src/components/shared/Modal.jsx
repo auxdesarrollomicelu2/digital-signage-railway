@@ -21,7 +21,7 @@ export default function Modal({ open, onClose, title, subtitle, children, accent
           <div style={{ padding: '22px 24px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
             <div>
               <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: '-.02em', fontFamily: FD }}>{title}</div>
-              {subtitle && <div style={{ fontSize: 12, color: T.textMuted, marginTop: 3 }}>{subtitle}</div>}
+              {subtitle && <div style={{ fontSize: 12, color: T.textSub, marginTop: 3 }}>{subtitle}</div>}
             </div>
             <button
               onClick={onClose}

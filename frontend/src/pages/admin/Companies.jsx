@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ShieldCheck, ToggleLeft } from 'lucide-react';
+import { Users, ShieldCheck, ToggleLeft, Power } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
 import MagneticFAB from '../../components/shared/MagneticFAB';
@@ -8,18 +8,22 @@ import FilterChipBar from '../../components/shared/FilterChipBar';
 import FilterSearchInput from '../../components/shared/FilterSearchInput';
 import FilterBarRow from '../../components/shared/FilterBarRow';
 import DeleteModal from '../../components/shared/DeleteModal';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 import CompanyCard from '../../components/shared/CompanyCard';
 import useDebouncedValue from '../../hooks/useDebouncedValue';
+import useIdleSheen from '../../hooks/useIdleSheen';
 import { useTheme } from '../../context/ThemeContext';
 import { FD } from '../../styles/tokens';
 
 export default function Companies() {
   const { T } = useTheme();
   const navigate = useNavigate();
+  const sheenActive = useIdleSheen();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toggleTarget, setToggleTarget] = useState(null);
   const [filters, setFilters] = useState({
     role: '',
     active: '',
@@ -71,7 +75,9 @@ export default function Companies() {
     setFilters((f) => ({ ...f, [key]: value }));
   }
 
-  async function handleToggleActive(company) {
+  async function handleToggleActive() {
+    if (!toggleTarget) return;
+    const company = toggleTarget;
     const action = company.active ? 'desactivar' : 'activar';
     try {
       await api.put(`/companies/${company.id}`, { active: !company.active });
@@ -79,6 +85,39 @@ export default function Companies() {
       setCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, active: !c.active } : c)));
     } catch (err) {
       toast.error(err.response?.data?.error || `Error al ${action} empresa`);
+    } finally {
+      setToggleTarget(null);
+    }
+  }
+
+  async function uploadCompanyImage(company, file) {
+    const formData = new FormData();
+    formData.append('files', file);
+    formData.append('company_id', company.id);
+    const { data } = await api.post('/media/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.media[0].url;
+  }
+
+  async function handleUploadCover(company, file) {
+    try {
+      const url = await uploadCompanyImage(company, file);
+      const { data } = await api.put(`/companies/${company.id}`, { cover_url: url });
+      toast.success('Foto de portada actualizada');
+      setCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, cover_url: data.company?.cover_url ?? url } : c)));
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error subiendo la foto de portada');
+    }
+  }
+
+  async function handleRemoveCover(company) {
+    try {
+      await api.put(`/companies/${company.id}`, { cover_url: null });
+      toast.success('Foto de portada eliminada');
+      setCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, cover_url: null } : c)));
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error eliminando la foto de portada');
     }
   }
 
@@ -97,7 +136,7 @@ export default function Companies() {
   const hasFilters = !!(filters.role || filters.active || search);
 
   return (
-    <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, color: T.primary, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 4 }}>
           Administración
@@ -105,7 +144,7 @@ export default function Companies() {
         <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
           Empresas
         </h1>
-        <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+        <p style={{ fontSize: 12.5, color: T.textSub, marginTop: 3 }}>
           {companies.length} empresa{companies.length === 1 ? '' : 's'}
         </p>
       </div>
@@ -128,17 +167,17 @@ export default function Companies() {
       </FilterBarRow>
 
       {loading ? (
-        <div className="card" style={{ minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="card" style={{ minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              margin: '0 auto', width: 34, height: 34, borderRadius: '50%',
+              margin: '0 auto', width: 34, height: 34, borderRadius: '80%',
               border: `3px solid ${T.inputBg}`, borderTopColor: T.primary, animation: 'spin 0.8s linear infinite',
             }} />
-            <p style={{ marginTop: 12, fontSize: 12.5, color: T.textMuted }}>Cargando empresas…</p>
+            <p style={{ marginTop: 12, fontSize: 12.5, color: T.textSub }}>Cargando empresas…</p>
           </div>
         </div>
       ) : companies.length === 0 ? (
-        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
+        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textSub, fontSize: 13 }}>
           Sin empresas {hasFilters ? 'con los filtros aplicados' : 'registradas'}.
           {!hasFilters && (
             <button
@@ -156,9 +195,12 @@ export default function Companies() {
               company={company}
               onView={() => navigate(`/admin/companies/${company.id}`)}
               onEdit={() => navigate(`/admin/companies/${company.id}/edit`)}
-              onToggleActive={() => handleToggleActive(company)}
+              onToggleActive={() => setToggleTarget(company)}
               onDelete={() => setDeleteTarget(company)}
+              onUploadCover={handleUploadCover}
+              onRemoveCover={handleRemoveCover}
               delay={i * 45}
+              sheenActive={sheenActive}
             />
           ))}
         </div>
@@ -169,6 +211,21 @@ export default function Companies() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         itemName={deleteTarget?.name}
+      />
+
+      <ConfirmModal
+        open={!!toggleTarget}
+        onClose={() => setToggleTarget(null)}
+        onConfirm={handleToggleActive}
+        icon={Power}
+        color={toggleTarget?.active ? T.red : T.green}
+        title={toggleTarget?.active ? '¿Desactivar esta empresa?' : '¿Activar esta empresa?'}
+        message={
+          toggleTarget?.active
+            ? <>Vas a desactivar <strong style={{ color: T.text }}>&quot;{toggleTarget?.name}&quot;</strong>. Sus usuarios no podrán acceder hasta que la reactives.</>
+            : <>Vas a activar <strong style={{ color: T.text }}>&quot;{toggleTarget?.name}&quot;</strong>. Sus usuarios podrán volver a acceder.</>
+        }
+        confirmLabel={toggleTarget?.active ? 'Desactivar' : 'Activar'}
       />
 
       <MagneticFAB onClick={() => navigate('/admin/companies/new')} label="Nueva empresa" icon={Users} color={T.primary} />

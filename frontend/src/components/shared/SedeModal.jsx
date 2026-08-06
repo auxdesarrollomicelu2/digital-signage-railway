@@ -20,7 +20,7 @@ export default function SedeModal({ open, onClose, onSubmit, form, setForm, isEd
     >
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Input
-          label="Nombre *"
+          label="Nombre"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           placeholder="Ej: Sede Norte"

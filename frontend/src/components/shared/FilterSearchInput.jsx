@@ -25,7 +25,7 @@ export default function FilterSearchInput({ value, onChange, placeholder, style 
       }}
     >
       <motion.span
-        animate={{ color: focus ? T.primary : T.textMuted, scale: focus ? 1.1 : 1 }}
+        animate={{ color: focus ? T.primary : T.textSub, scale: focus ? 1.1 : 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         style={{ display: 'flex' }}
       >
@@ -48,7 +48,7 @@ export default function FilterSearchInput({ value, onChange, placeholder, style 
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', display: 'flex' }}
+            style={{ background: 'transparent', border: 'none', color: T.textSub, cursor: 'pointer', display: 'flex' }}
           >
             <X size={11} />
           </motion.button>

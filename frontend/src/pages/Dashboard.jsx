@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Building2, Monitor, Wifi, WifiOff, Image as ImageIcon, ChevronRight, Pencil, Trash2, PlusCircle, Activity } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
+import { Building2, Monitor, Wifi, WifiOff, Image as ImageIcon, ChevronRight, ChevronDown, Pencil, Trash2, PlusCircle, Activity } from 'lucide-react';
 import api from '../api';
 import { useTheme } from '../context/ThemeContext';
 import usePermissions from '../hooks/usePermissions';
+import useDockScale from '../hooks/useDockScale';
 import timeAgo from '../utils/timeAgo';
 import SelectDropdown from '../components/shared/SelectDropdown';
+import { isVideoMime } from '../utils/mediaType';
 import { FD, FM, EASE } from '../styles/tokens';
 
 // Conteo animado — siempre nace en 0 y sube hasta el valor real (nunca
@@ -109,10 +111,11 @@ function KpiCard({ card, value, T, delay = 0 }) {
   const animatedValue = useCountUp(value);
   const body = (
     <div
-      className="card card-hover"
+      className="card-hover"
       style={{
-        padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, height: '100%',
-        borderLeft: `3px solid ${color}`, background: `linear-gradient(135deg, ${color}0d, transparent 55%)`,
+        padding: '18px 20px 18px 18px', display: 'flex', alignItems: 'center', gap: 14, height: '100%',
+        borderRadius: 14, borderLeft: `3px solid ${color}`, background: 'transparent',
+        transition: 'background .2s ease',
       }}
     >
       <motion.div
@@ -144,25 +147,64 @@ function KpiCard({ card, value, T, delay = 0 }) {
   return body;
 }
 
-function BarRow({ label, value, formatDisplay, max, color, T, delay = 0 }) {
+// Fila de barra — si la sede tiene al menos un dispositivo/archivo detrás del
+// número, un desplegable lista cada uno (nombre + dato real) para saber
+// exactamente cuál es cuál; clic en un ítem lleva a esa pantalla en "Ver".
+function BarRow({ label, value, formatDisplay, max, color, T, delay = 0, items = [], onItemClick }) {
+  const [expanded, setExpanded] = useState(false);
   const animatedValue = useCountUp(value, 800);
   const pct = max > 0 ? Math.round((animatedValue / max) * 100) : 0;
+  const hasItems = items.length > 0;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-      <span style={{ fontSize: 12.5, color: T.textSub, width: 90, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {label}
-      </span>
-      <div style={{ flex: 1, height: 7, borderRadius: 99, background: T.inputBg, overflow: 'hidden' }}>
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: EASE, delay }}
-          style={{ height: '100%', background: color, borderRadius: 99, boxShadow: `0 0 10px -2px ${color}` }}
-        />
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: hasItems ? 'pointer' : 'default' }}
+        onClick={() => hasItems && setExpanded((e) => !e)}
+      >
+        <span style={{
+          fontSize: 12.5, color: T.textSub, width: 90, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          display: 'flex', alignItems: 'center', gap: 3,
+        }}>
+          {label}
+          {hasItems && (
+            <ChevronDown size={11} style={{ flexShrink: 0, transition: 'transform .2s ease', transform: expanded ? 'rotate(180deg)' : 'none' }} />
+          )}
+        </span>
+        <div style={{ flex: 1, height: 7, borderRadius: 99, background: T.inputBg, overflow: 'hidden' }}>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.8, ease: EASE, delay }}
+            style={{ height: '100%', background: color, borderRadius: 99, boxShadow: `0 0 10px -2px ${color}` }}
+          />
+        </div>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: T.text, width: 36, flexShrink: 0, textAlign: 'right' }}>
+          {formatDisplay ? formatDisplay(animatedValue) : animatedValue}
+        </span>
       </div>
-      <span style={{ fontSize: 12.5, fontWeight: 700, color: T.text, width: 36, flexShrink: 0, textAlign: 'right' }}>
-        {formatDisplay ? formatDisplay(animatedValue) : animatedValue}
-      </span>
+      {hasItems && expanded && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '6px 0 2px 100px', maxHeight: 96, overflowY: 'auto' }}>
+          {items.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onItemClick && onItemClick(it); }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                fontSize: 11, color: T.textSub, background: 'transparent', border: 'none',
+                padding: '3px 6px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+                transition: 'background .15s ease, color .15s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = T.inputBg; e.currentTarget.style.color = T.text; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSub; }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
+              <span style={{ flexShrink: 0, opacity: 0.75 }}>{it.sub}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -179,9 +221,10 @@ function LegendDot({ color, label }) {
 
 const COLUMN_CHART_H = 168;
 
-// Una barra vertical — crece desde la base, con el valor como etiqueta
-// flotando justo encima de su punta (se mueve con ella durante la animación).
+// Una barra vertical — crece desde la base; el valor solo aparece como
+// tooltip flotante al pasar el cursor, no queda fijo encima de la barra.
 function BarColumn({ value, max, color, T, delay = 0 }) {
+  const [hov, setHov] = useState(false);
   const animValue = useCountUp(value, 800);
   const pct = max > 0 ? (animValue / max) * 100 : 0;
   return (
@@ -190,9 +233,18 @@ function BarColumn({ value, max, color, T, delay = 0 }) {
         initial={{ height: 0 }}
         animate={{ height: `${pct}%` }}
         transition={{ duration: 0.8, ease: EASE, delay }}
-        style={{ width: '100%', minHeight: value > 0 ? 2 : 0, background: color, borderRadius: '5px 5px 0 0', position: 'relative', boxShadow: `0 0 10px -2px ${color}` }}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{ width: '100%', minHeight: value > 0 ? 2 : 0, background: color, borderRadius: '5px 5px 0 0', position: 'relative', boxShadow: `0 0 10px -2px ${color}`, cursor: 'default' }}
       >
-        <span style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 700, color: T.text, whiteSpace: 'nowrap' }}>
+        <span
+          style={{
+            position: 'absolute', top: -24, left: '50%', transform: hov ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(3px)',
+            fontSize: 10.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', background: color, borderRadius: 6,
+            padding: '2px 6px', boxShadow: '0 4px 10px -3px rgba(0,0,0,.5)',
+            opacity: hov ? 1 : 0, transition: 'opacity .15s ease, transform .15s ease', pointerEvents: 'none',
+          }}
+        >
           {animValue}
         </span>
       </motion.div>
@@ -217,7 +269,7 @@ function GroupedChartCard({ title, rows, emptyLabel, T, delay = 0 }) {
       {rows.length === 0 ? (
         <span style={{ fontSize: 12.5, color: T.textSub }}>{emptyLabel}</span>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 22, overflowX: 'auto', paddingBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 22, overflowX: 'auto', overflowY: 'hidden', paddingTop: 30, paddingBottom: 4 }}>
           {rows.map((r, i) => (
             <div key={r.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, borderBottom: `1px solid ${T.border}` }}>
@@ -254,19 +306,21 @@ function ConnectionDonut({ online, total, T, size = 92 }) {
           <circle
             cx={size / 2} cy={size / 2} r={r} fill="none"
             stroke={T.green} strokeWidth={stroke} strokeLinecap="round"
-            strokeDasharray={`${Math.max(onlineLen - gap, 0)} ${circumference}`}
+            strokeDasharray={`${Math.max(onlineLen - (offlineLen > 0 ? gap : 0), 0)} ${circumference}`}
             strokeDashoffset={0}
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
             style={{ transition: 'stroke-dasharray .7s cubic-bezier(.22,1,.36,1)', filter: `drop-shadow(0 0 6px ${T.green}88)` }}
           />
-          <circle
-            cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke={T.red} strokeWidth={stroke} strokeLinecap="round"
-            strokeDasharray={`${Math.max(offlineLen - gap, 0)} ${circumference}`}
-            strokeDashoffset={-onlineLen}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            style={{ transition: 'stroke-dasharray .7s cubic-bezier(.22,1,.36,1), stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)', filter: `drop-shadow(0 0 6px ${T.red}88)` }}
-          />
+          {offlineLen > 0 && (
+            <circle
+              cx={size / 2} cy={size / 2} r={r} fill="none"
+              stroke={T.red} strokeWidth={stroke} strokeLinecap="round"
+              strokeDasharray={`${Math.max(offlineLen - gap, 0)} ${circumference}`}
+              strokeDashoffset={-onlineLen}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              style={{ transition: 'stroke-dasharray .7s cubic-bezier(.22,1,.36,1), stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)', filter: `drop-shadow(0 0 6px ${T.red}88)` }}
+            />
+          )}
         </>
       )}
       <text x="50%" y="52%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: size >= 80 ? 19 : 14, fontWeight: 800, fill: T.text, fontFamily: FD }}>
@@ -312,6 +366,7 @@ function CompanySelect({ companies, value, onChange, T }) {
       onChange={onChange}
       options={options}
       minWidth={190}
+      visibleLimit={3}
       triggerStyle={{
         fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8,
         background: T.inputBg, border: `1px solid ${T.border}`, maxWidth: 190,
@@ -323,7 +378,7 @@ function CompanySelect({ companies, value, onChange, T }) {
 // Card "inteligente" con pastillas de métrica — el contenido cambia con
 // animación fluida (fade + las barras vuelven a nacer desde cero) al
 // cambiar de pestaña, sin ser cuatro cards distintas.
-function SmartChartCard({ title, tabs, active, onChangeTab, rows, emptyLabel, T, delay = 0, companySelector }) {
+function SmartChartCard({ title, tabs, active, onChangeTab, rows, emptyLabel, T, delay = 0, companySelector, onItemClick }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <motion.div {...cardEnter} transition={{ ...cardEnter.transition, delay }} className="card card-hover" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
@@ -346,7 +401,7 @@ function SmartChartCard({ title, tabs, active, onChangeTab, rows, emptyLabel, T,
             <span style={{ fontSize: 12.5, color: T.textSub }}>{emptyLabel}</span>
           ) : (
             rows.map((r, i) => (
-              <BarRow key={`${active}-${r.name}`} label={r.name} value={r.value} formatDisplay={r.formatDisplay} max={max} color={r.color} T={T} delay={0.05 + i * 0.06} />
+              <BarRow key={`${active}-${r.name}`} label={r.name} value={r.value} formatDisplay={r.formatDisplay} max={max} color={r.color} T={T} delay={0.05 + i * 0.06} items={r.items} onItemClick={onItemClick} />
             ))
           )}
         </motion.div>
@@ -363,14 +418,7 @@ const DOCK_MAGNIFICATION = 1.09;
 // magnética hacia el cursor), pero en vertical: la fila más cercana al mouse
 // crece un poco y las vecinas se van achicando con la distancia.
 function ActivityRow({ log, T, mouseY }) {
-  const ref = useRef(null);
-
-  const distance = useTransform(mouseY, (val) => {
-    const rect = ref.current?.getBoundingClientRect() ?? { top: 0, height: 44 };
-    return val - rect.top - rect.height / 2;
-  });
-  const targetScale = useTransform(distance, [-DOCK_DISTANCE, 0, DOCK_DISTANCE], [1, DOCK_MAGNIFICATION, 1]);
-  const scale = useSpring(targetScale, DOCK_SPRING);
+  const { ref, scale } = useDockScale(mouseY, { distance: DOCK_DISTANCE, magnification: DOCK_MAGNIFICATION, spring: DOCK_SPRING });
 
   const Icon = ACTION_ICON[log.action] || Pencil;
   const color = T[ACTION_COLOR_KEY[log.action] || 'blue'];
@@ -523,6 +571,7 @@ const STATUS_TABS = [
 export default function Dashboard() {
   const { T } = useTheme();
   const { isSuperAdmin } = usePermissions();
+  const navigate = useNavigate();
 
   const [venuesRaw, setVenuesRaw] = useState([]);
   const [screensRaw, setScreensRaw] = useState([]);
@@ -613,32 +662,62 @@ export default function Dashboard() {
     media: media.length,
   }), [venues, screens, media]);
 
-  // Distribución de pantallas por sede
+  // Sedes -> lista de sus pantallas — base para las dos tablas de abajo, así
+  // cada barra puede desplegar exactamente cuáles dispositivos/archivos la componen.
+  const venueScreensMap = useMemo(() => {
+    const map = new Map();
+    venues.forEach((v) => map.set(v.name, []));
+    screens.forEach((s) => {
+      const name = s.Venue?.name || 'Sin sede';
+      const arr = map.get(name) || [];
+      arr.push(s);
+      map.set(name, arr);
+    });
+    return map;
+  }, [screens, venues]);
+
+  // Distribución de pantallas por sede — incluye también las sedes sin
+  // pantallas todavía (aparecen en 0, y suben solas cuando se les asignen).
+  // Cada fila trae sus pantallas reales para el desplegable (clic -> Ver pantalla).
   const screensByVenue = useMemo(() => {
-    const map = new Map();
-    screens.forEach((s) => {
-      const name = s.Venue?.name || 'Sin sede';
-      map.set(name, (map.get(name) || 0) + 1);
-    });
-    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  }, [screens]);
+    return [...venueScreensMap.entries()]
+      .map(([name, arr]) => ({
+        name,
+        count: arr.length,
+        items: arr.map((s) => ({ key: s.id, screenId: s.id, label: s.name, sub: s.device_id })),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [venueScreensMap]);
 
-  // Duración total asignada por sede — suma de ScreenMedia.duration (dato real, no inventado)
+  // Duración total asignada por sede — suma de ScreenMedia.duration (dato real, no inventado).
+  // Cada fila trae el detalle de cada archivo (nombre + duración + pantalla) para el desplegable.
   const durationByVenue = useMemo(() => {
-    const map = new Map();
-    screens.forEach((s) => {
-      const name = s.Venue?.name || 'Sin sede';
-      const items = screenPlaylists[s.id] || [];
-      const sec = items.reduce((acc, it) => acc + (Number(it.duration) || 0), 0);
-      map.set(name, (map.get(name) || 0) + sec);
+    const rows = [...venueScreensMap.entries()].map(([name, arr]) => {
+      let totalSec = 0;
+      const items = [];
+      arr.forEach((s) => {
+        const playlist = screenPlaylists[s.id] || [];
+        playlist.forEach((it, idx) => {
+          const dur = Number(it.duration) || 0;
+          totalSec += dur;
+          items.push({
+            key: `${s.id}-${it.id ?? idx}`,
+            screenId: s.id,
+            label: it.Media?.original_name || (isVideoMime(it.Media?.mime_type) ? 'Video' : 'Imagen'),
+            sub: `${fmtDuration(dur)} · ${s.name}`,
+          });
+        });
+      });
+      return { name, totalSec, items };
     });
-    return [...map.entries()].map(([name, totalSec]) => ({ name, totalSec })).filter((v) => v.totalSec > 0).sort((a, b) => b.totalSec - a.totalSec);
-  }, [screens, screenPlaylists]);
-  const totalDurationAll = durationByVenue.reduce((a, v) => a + v.totalSec, 0);
+    return rows.filter((v) => v.totalSec > 0).sort((a, b) => b.totalSec - a.totalSec);
+  }, [venueScreensMap, screenPlaylists]);
 
-  // Imágenes y videos por sede — agrupado a partir de la playlist real de cada pantalla
+  // Imágenes y videos por sede — agrupado a partir de la playlist real de cada
+  // pantalla; incluye también las sedes sin media asignada todavía (en 0).
   const mediaByVenue = useMemo(() => {
     const map = new Map();
+    venues.forEach((v) => map.set(v.name, { name: v.name, imagenes: 0, videos: 0 }));
     screens.forEach((s) => {
       const venueName = s.Venue?.name || 'Sin sede';
       const items = screenPlaylists[s.id] || [];
@@ -651,8 +730,8 @@ export default function Dashboard() {
       map.set(venueName, entry);
     });
     return [...map.values()];
-  }, [screens, screenPlaylists]);
-  const mediaByVenueSorted = [...mediaByVenue].filter((v) => v.imagenes > 0 || v.videos > 0).sort((a, b) => (b.imagenes + b.videos) - (a.imagenes + a.videos));
+  }, [screens, screenPlaylists, venues]);
+  const mediaByVenueSorted = [...mediaByVenue].sort((a, b) => (b.imagenes + b.videos) - (a.imagenes + a.videos));
 
   const statusFilteredScreens = useMemo(() => {
     if (statusFilter === 'online') return screens.filter((s) => s.status === 'online');
@@ -665,8 +744,12 @@ export default function Dashboard() {
   const animatedMedia = useCountUp(stats.media);
 
   const chartARows = chartTabA === 'screens'
-    ? screensByVenue.map((v) => ({ name: v.name, value: v.count, color: T.accent }))
-    : durationByVenue.map((v) => ({ name: v.name, value: v.totalSec, formatDisplay: fmtDuration, color: T.amber }));
+    ? screensByVenue.map((v) => ({ name: v.name, value: v.count, color: T.accent, items: v.items }))
+    : durationByVenue.map((v) => ({ name: v.name, value: v.totalSec, formatDisplay: fmtDuration, color: T.amber, items: v.items }));
+
+  function goToScreen(item) {
+    navigate(`/screens/${item.screenId}`);
+  }
 
 
   const hasActivity = isSuperAdmin && recentActivity.length > 0;
@@ -736,7 +819,6 @@ export default function Dashboard() {
           style={{ display: 'flex', padding: 0, overflow: 'hidden' }}
         >
           <IndexColumn
-            index="01"
             icon={Activity}
             label="Actividad reciente"
             subtitle={`${recentActivity.length} evento${recentActivity.length !== 1 ? 's' : ''}`}
@@ -755,7 +837,6 @@ export default function Dashboard() {
           </IndexColumn>
 
           <IndexColumn
-            index="02"
             icon={Monitor}
             label="Estado de pantallas"
             subtitle={`${stats.online} en línea · ${stats.offline} offline`}
@@ -799,10 +880,10 @@ export default function Dashboard() {
       {/* 3. Tercera fila — dos cards inteligentes con filtros internos */}
       <div className="dash-pair">
         <SmartChartCard
-          title="Pantallas por sede"
+          title="duración por medio"
           tabs={[
             { key: 'screens', label: 'Pantallas', color: T.accent },
-            { key: 'duration', label: 'Duración', color: T.amber },
+            { key: 'duration', label: 'Videos', color: T.amber },
           ]}
           active={chartTabA}
           onChangeTab={setChartTabA}
@@ -810,6 +891,7 @@ export default function Dashboard() {
           emptyLabel="Sin datos para mostrar."
           T={T}
           delay={0.05}
+          onItemClick={goToScreen}
           companySelector={isSuperAdmin && (
             <CompanySelect companies={companies} value={selectedCompanyId} onChange={setSelectedCompanyId} T={T} />
           )}

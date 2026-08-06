@@ -82,7 +82,7 @@ export default function FilterChipBar({ fields, values, onChange, resultCount, s
               <div
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', background: T.inputBg,
-                  borderBottom: `1px solid ${T.border}`, fontSize: 10.5, fontWeight: 700, color: T.textMuted,
+                  borderBottom: `1px solid ${T.border}`, fontSize: 10.5, fontWeight: 700, color: T.textSub,
                   textTransform: 'uppercase', letterSpacing: '.06em',
                 }}
               >
@@ -116,7 +116,7 @@ export default function FilterChipBar({ fields, values, onChange, resultCount, s
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, flex: 1 }}>
         {activeIds.length === 0 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textMuted, fontStyle: 'italic' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textSub, fontStyle: 'italic' }}>
             <Info size={13} /> No hay filtros aplicados
           </span>
         )}
@@ -144,18 +144,18 @@ export default function FilterChipBar({ fields, values, onChange, resultCount, s
             onClick={() => setOpen(true)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5, height: 34, padding: '0 12px',
-              borderRadius: 9, background: 'transparent', border: `1.5px dashed ${T.border}`, color: T.textMuted,
+              borderRadius: 9, background: 'transparent', border: `1.5px dashed ${T.border}`, color: T.textSub,
               fontSize: 12, fontWeight: 600, fontFamily: FB, cursor: 'pointer', transition: 'all .15s ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = T.primary; e.currentTarget.style.borderStyle = 'solid'; e.currentTarget.style.color = T.primary; e.currentTarget.style.background = T.primaryDim; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.color = T.textMuted; e.currentTarget.style.background = 'transparent'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.borderStyle = 'dashed'; e.currentTarget.style.color = T.textSub; e.currentTarget.style.background = 'transparent'; }}
           >
             <Plus size={12} /> Agregar
           </button>
         )}
 
         {typeof resultCount === 'number' && (
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: T.textMuted }}>
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: T.textSub }}>
             {resultCount} resultado{resultCount !== 1 ? 's' : ''}
           </span>
         )}
@@ -222,14 +222,14 @@ function FilterChip({ field, value, onChange, onRemove, T }) {
 
       {field.type === 'daterange' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: T.textMuted }}>Desde</span>
+          <span style={{ fontSize: 11, color: T.textSub }}>Desde</span>
           <input
             type="date"
             value={value?.desde || ''}
             onChange={(e) => onChange({ ...value, desde: e.target.value })}
             style={{ border: 'none', background: 'transparent', outline: 'none', color: T.text, fontSize: 12.5, fontFamily: FB, colorScheme: T.mode }}
           />
-          <span style={{ fontSize: 11, color: T.textMuted }}>Hasta</span>
+          <span style={{ fontSize: 11, color: T.textSub }}>Hasta</span>
           <input
             type="date"
             value={value?.hasta || ''}

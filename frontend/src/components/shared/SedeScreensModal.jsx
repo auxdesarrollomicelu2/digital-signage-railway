@@ -44,7 +44,7 @@ export default function SedeScreensModal({ sede, onClose }) {
               </div>
               <div>
                 <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, fontFamily: FD }}>{sede.name}</div>
-                <div style={{ fontSize: 11.5, color: T.textMuted, display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                <div style={{ fontSize: 11.5, color: T.textSub, display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                   {sede.address && <><MapPin size={10} /> {sede.address} · </>}<Monitor size={10} /> {screens.length} pantalla{screens.length !== 1 ? 's' : ''}
                 </div>
               </div>
@@ -60,14 +60,14 @@ export default function SedeScreensModal({ sede, onClose }) {
           </div>
 
           {loading ? (
-            <div style={{ padding: '44px 22px', textAlign: 'center', fontSize: 12.5, color: T.textMuted }}>Cargando pantallas…</div>
+            <div style={{ padding: '44px 22px', textAlign: 'center', fontSize: 12.5, color: T.textSub }}>Cargando pantallas…</div>
           ) : screens.length === 0 ? (
             <div style={{ padding: '44px 22px', textAlign: 'center' }}>
               <div style={{ width: 52, height: 52, borderRadius: 14, background: T.inputBg, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', animation: 'float 3s ease-in-out infinite' }}>
-                <Monitor size={22} color={T.textMuted} strokeWidth={1.3} />
+                <Monitor size={22} color={T.textSub} strokeWidth={1.3} />
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 5 }}>Sin pantallas registradas</div>
-              <div style={{ fontSize: 12.5, color: T.textMuted }}>Esta sede aún no tiene dispositivos asignados.</div>
+              <div style={{ fontSize: 12.5, color: T.textSub }}>Esta sede aún no tiene dispositivos asignados.</div>
             </div>
           ) : (
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', minHeight: 0, flex: '1 1 auto' }}>
@@ -88,7 +88,7 @@ export default function SedeScreensModal({ sede, onClose }) {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>
+                      <div style={{ fontSize: 11, color: T.textSub, marginTop: 1 }}>
                         <code style={{ fontFamily: FM, fontSize: 10, color: T.primary }}>{s.device_id}</code>
                       </div>
                     </div>
@@ -98,10 +98,10 @@ export default function SedeScreensModal({ sede, onClose }) {
                       </div>
                     )}
                     <StatusBadge status={s.status} />
-                    <span style={{ fontSize: 11, color: T.textMuted, display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: T.textSub, display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
                       <Clock size={9} /> {timeAgo(s.last_heartbeat)}
                     </span>
-                    <ChevronRight size={13} color={T.textMuted} style={{ flexShrink: 0 }} />
+                    <ChevronRight size={13} color={T.textSub} style={{ flexShrink: 0 }} />
                   </div>
                 );
               })}

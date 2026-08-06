@@ -28,7 +28,7 @@ function InfoRow({ icon: Icon, label, value, T }) {
         <Icon size={12.5} />
       </span>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
+        <div style={{ fontSize: 10, color: T.textSub, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
         <div style={{ fontSize: 12.5, color: T.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       </div>
     </div>
@@ -163,10 +163,10 @@ export default function MediaDrawer({ item, onClose, onRename, onDelete, onOpenV
                     <span style={{ fontSize: 14.5, fontWeight: 700, color: T.text, fontFamily: FD, wordBreak: 'break-word' }}>
                       {item?.original_name}
                     </span>
-                    <Pencil size={11} color={T.textMuted} style={{ flexShrink: 0 }} />
+                    <Pencil size={11} color={T.textSub} style={{ flexShrink: 0 }} />
                   </div>
                 )}
-                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Doble clic sobre el nombre para editarlo</div>
+                <div style={{ fontSize: 11, color: T.textSub, marginTop: 2 }}>Doble clic sobre el nombre para editarlo</div>
               </div>
 
               <div style={{ marginTop: 14 }}>

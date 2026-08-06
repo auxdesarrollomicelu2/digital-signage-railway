@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, useMotionValue } from 'framer-motion';
 import { Zap, FileType, Building2, CalendarRange, Eye, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import api from '../../api';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import FilterSearchInput from '../../components/shared/FilterSearchInput';
 import FilterBarRow from '../../components/shared/FilterBarRow';
 import AuditLogDrawer from '../../components/admin/AuditLogDrawer';
 import useDebouncedValue from '../../hooks/useDebouncedValue';
+import useDockScale from '../../hooks/useDockScale';
 import { useTheme } from '../../context/ThemeContext';
 import { FD } from '../../styles/tokens';
 import { ACTION_MAP, RESOURCE_TYPE_MAP } from '../../utils/auditLogConstants';
@@ -38,13 +39,7 @@ function ActionBadge({ action, T }) {
 // magnética hacia el cursor) que usa "Actividad reciente" en el Dashboard,
 // aplicado de forma muy sutil para no distraer de la lectura.
 function LogRow({ log, onView, T, mouseY }) {
-  const ref = useRef(null);
-  const distance = useTransform(mouseY, (val) => {
-    const rect = ref.current?.getBoundingClientRect() ?? { top: 0, height: 52 };
-    return val - rect.top - rect.height / 2;
-  });
-  const targetScale = useTransform(distance, [-DOCK_DISTANCE, 0, DOCK_DISTANCE], [1, DOCK_MAGNIFICATION, 1]);
-  const scale = useSpring(targetScale, DOCK_SPRING);
+  const { ref, scale } = useDockScale(mouseY, { distance: DOCK_DISTANCE, magnification: DOCK_MAGNIFICATION, spring: DOCK_SPRING, itemHeight: 52 });
 
   const hasDetail = !!(log.old_values || log.new_values);
 
@@ -81,7 +76,7 @@ function LogRow({ log, onView, T, mouseY }) {
           }} title={log.resource_name}>
             {log.resource_name || '—'}
           </div>
-          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 11, color: T.textSub, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {log.Company?.name || 'Sin empresa'}
           </div>
         </div>
@@ -274,7 +269,7 @@ export default function AuditLogs() {
             dateRange: { desde: filters.start_date, hasta: filters.end_date },
           }}
           onChange={handleFilterChange}
-          style={{ flex: '0 1 auto' }}
+          style={{ flex: '0 4 auto' }}
         />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           <FilterSearchInput
@@ -308,9 +303,9 @@ export default function AuditLogs() {
         className="card"
         style={{
           padding: 0, overflow: 'hidden', position: 'relative',
-          background: 'rgba(255,255,255,0.035)',
-          backdropFilter: 'blur(40px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(160%)',
+          background: 'rgba(15, 20, 29, 0.84)',
+          backdropFilter: 'blur(160px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(160px) saturate(200%)',
         }}
       >
         {loading ? (
@@ -330,8 +325,8 @@ export default function AuditLogs() {
           </div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: 'fit-content' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ width: '100%', minWidth: 'fit-content' }}>
                 <div style={{
                   display: 'grid', gridTemplateColumns: GRID_COLS, columnGap: 16, padding: '12px 20px',
                   fontSize: 10.5, fontWeight: 700, color: T.primary, textTransform: 'uppercase', letterSpacing: '.07em',

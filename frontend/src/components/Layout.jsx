@@ -124,7 +124,9 @@ export default function Layout({ children }) {
           position: 'fixed', top: 0, left: 0, height: '100vh', flexShrink: 0, zIndex: 20,
           display: 'flex', flexDirection: 'column', background: T.sidebarBg,
           borderRight: '1px solid rgba(255,255,255,.06)',
-          width: collapsed ? 72 : 220, minWidth: collapsed ? 72 : 220,
+          width: collapsed ? 72 : 'clamp(180px, 18vw, 220px)',
+          minWidth: collapsed ? 72 : 180,
+          maxWidth: collapsed ? 72 : 220,
           transition: 'width .38s cubic-bezier(.22,1,.36,1), min-width .38s cubic-bezier(.22,1,.36,1)',
           overflowY: 'auto', overflowX: 'hidden',
         }}
@@ -132,9 +134,8 @@ export default function Layout({ children }) {
         <div style={{ height: 1.5, background: `linear-gradient(90deg, transparent, ${sp}88, transparent)`, flexShrink: 0 }} />
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 11,
-            padding: collapsed ? '20px 0' : '20px 16px',
-            justifyContent: collapsed ? 'center' : 'flex-start',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            padding: collapsed ? '20px 0' : '18px 16px',
             borderBottom: '1px solid rgba(255,255,255,.05)',
             flexShrink: 0,
           }}
@@ -143,16 +144,15 @@ export default function Layout({ children }) {
             src="/isotipo.png"
             alt="Digital Signage"
             style={{
-              width: 50, height: 50, flexShrink: 0, objectFit: 'contain',
+              width: 85, height: 85, flexShrink: 0, objectFit: 'contain',
               filter: `drop-shadow(0 0 8px ${sp}77)`,
             }}
           />
           {!collapsed && (
-            <div style={{ lineHeight: 1.2, minWidth: 0 }}>
+            <div style={{ lineHeight: 1.2, minWidth: 0, textAlign: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '-.01em', fontFamily: FD, whiteSpace: 'nowrap' }}>
                 Digital Signage
               </div>
-              <div style={{ fontSize: 10, color: sp, opacity: .8 }}>Panel de control</div>
             </div>
           )}
         </div>
@@ -270,7 +270,7 @@ export default function Layout({ children }) {
         style={{
           flex: 1, minWidth: 0, maxWidth: '100%', position: 'relative', zIndex: 1,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          marginLeft: collapsed ? 72 : 220,
+          marginLeft: collapsed ? 72 : 'clamp(180px, 18vw, 220px)',
           transition: 'margin-left .38s cubic-bezier(.22,1,.36,1)',
         }}
       >

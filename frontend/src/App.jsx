@@ -23,7 +23,7 @@ function AuthenticatedRoute({ children }) {
 export default function App() {
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-left" />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route

@@ -10,17 +10,15 @@ import FilterChipBar from '../components/shared/FilterChipBar';
 import FilterBarRow from '../components/shared/FilterBarRow';
 import MediaDrawer from '../components/shared/MediaDrawer';
 import MediaViewer from '../components/shared/MediaViewer';
+import DeleteModal from '../components/shared/DeleteModal';
 import { useTheme } from '../context/ThemeContext';
+import { isVideoMime } from '../utils/mediaType';
 import { FD, EASE } from '../styles/tokens';
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function isVideoMime(mime) {
-  return String(mime || '').toLowerCase().startsWith('video/');
 }
 
 // Widget flotante estilo versat.ai — pequeña cápsula con vidrio esmerilado
@@ -42,8 +40,11 @@ function FloatingWidget({ icon: Icon, label, color }) {
   );
 }
 
-function QuickAction({ icon: Icon, label, color, onClick, T }) {
+function QuickAction({ icon: Icon, label, color, strongWhite = false, onClick, T }) {
   const [hov, setHov] = useState(false);
+  const hoverBg = strongWhite ? 'rgba(255,255,255,.85)' : `${color}30`;
+  const hoverBorder = strongWhite ? 'rgba(255,255,255,.9)' : color;
+  const hoverColor = strongWhite ? '#0a0d12' : color;
   return (
     <button
       type="button"
@@ -54,9 +55,9 @@ function QuickAction({ icon: Icon, label, color, onClick, T }) {
       onMouseLeave={() => setHov(false)}
       style={{
         width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', border: `1px solid ${hov ? color : 'rgba(255,255,255,.18)'}`,
-        background: hov ? `${color}30` : 'rgba(10,13,18,.55)', backdropFilter: 'blur(10px)',
-        color: hov ? color : '#fff', transition: 'all .16s ease', transform: hov ? 'translateY(-1px) scale(1.05)' : 'translateY(0) scale(1)',
+        cursor: 'pointer', border: `1px solid ${hov ? hoverBorder : 'rgba(255,255,255,.18)'}`,
+        background: hov ? hoverBg : 'rgba(10,13,18,.55)', backdropFilter: 'blur(10px)',
+        color: hov ? hoverColor : '#fff', transition: 'all .16s ease', transform: hov ? 'translateY(-1px) scale(1.05)' : 'translateY(0) scale(1)',
       }}
     >
       <Icon size={13} />
@@ -138,7 +139,7 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
           transition={{ duration: 0.2, ease: EASE }}
           style={{ position: 'absolute', top: 9, right: 9, display: 'flex', gap: 6 }}
         >
-          <QuickAction icon={Eye} label="Ver" color={T.primary} T={T} onClick={(e) => { e.stopPropagation(); onView(item); }} />
+          <QuickAction icon={Eye} label="Ver" color={T.primary} strongWhite T={T} onClick={(e) => { e.stopPropagation(); onView(item); }} />
           <QuickAction icon={Pencil} label="Editar" color={T.blue} T={T} onClick={(e) => { e.stopPropagation(); onEdit(item); }} />
           <QuickAction icon={Trash2} label="Eliminar" color={T.red} T={T} onClick={(e) => { e.stopPropagation(); onDelete(item); }} />
         </motion.div>
@@ -194,6 +195,7 @@ export default function MediaPage() {
   const [dragActive, setDragActive] = useState(false);
   const [drawerItem, setDrawerItem] = useState(null);
   const [viewerIndex, setViewerIndex] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const fileInputRef = useRef(null);
 
   const {
@@ -278,15 +280,21 @@ export default function MediaPage() {
     }
   }
 
-  async function handleDelete(item) {
-    if (!confirm('¿Eliminar este archivo?')) return;
+  function handleDelete(item) {
+    setDeleteTarget(item);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/media/${item.id}`);
+      await api.delete(`/media/${deleteTarget.id}`);
       toast.success('Archivo eliminado');
-      if (drawerItem?.id === item.id) setDrawerItem(null);
+      if (drawerItem?.id === deleteTarget.id) setDrawerItem(null);
       loadMedia();
     } catch {
       toast.error('Error eliminando archivo');
+    } finally {
+      setDeleteTarget(null);
     }
   }
 
@@ -323,7 +331,7 @@ export default function MediaPage() {
         <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
           Media
         </h1>
-        <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+        <p style={{ fontSize: 12.5, color: T.textSub, marginTop: 3 }}>
           {media.length} archivo{media.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -342,7 +350,7 @@ export default function MediaPage() {
             placeholder="Buscar por nombre de archivo…"
             style={{ flex: '0 1 240px', minWidth: 160 }}
           />
-          <span style={{ fontSize: 11.5, color: T.textMuted, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11.5, color: T.textSub, whiteSpace: 'nowrap' }}>
             {media.length} resultado{media.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -381,13 +389,13 @@ export default function MediaPage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
             <UploadCloud size={22} color={T.primary} strokeWidth={1.5} />
             <p style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Arrastra archivos aquí o haz clic para seleccionar</p>
-            <p style={{ fontSize: 11.5, color: T.textMuted }}>Imágenes y videos (MOV, MP4, WEBM…), máx. 50 MB</p>
+            <p style={{ fontSize: 11.5, color: T.textSub }}>Imágenes y videos (MOV, MP4, WEBM…), máx. 50 MB</p>
           </div>
         )}
       </div>
 
       {media.length === 0 ? (
-        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
+        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textSub, fontSize: 13 }}>
           No hay archivos subidos.
         </div>
       ) : (
@@ -422,6 +430,13 @@ export default function MediaPage() {
         index={viewerIndex}
         onClose={() => setViewerIndex(null)}
         onNavigate={setViewerIndex}
+      />
+
+      <DeleteModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        itemName={deleteTarget?.original_name}
       />
     </div>
   );

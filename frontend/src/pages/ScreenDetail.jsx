@@ -265,7 +265,7 @@ export default function ScreenDetail() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260, color: T.textMuted, fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260, color: T.textSub, fontSize: 13 }}>
         Cargando...
       </div>
     );
@@ -273,7 +273,7 @@ export default function ScreenDetail() {
 
   if (!screen) {
     return (
-      <div style={{ textAlign: 'center', padding: '48px 0', color: T.textMuted, fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: '48px 0', color: T.textSub, fontSize: 13 }}>
         Pantalla no encontrada
       </div>
     );
@@ -317,7 +317,7 @@ export default function ScreenDetail() {
         <Btn variant="secondary" onClick={() => navigate('/screens')} style={{ gap: 6 }}>
           <ArrowLeft size={15} /> Volver a pantallas
         </Btn>
-        <span style={{ color: T.textMuted, fontSize: 13 }}>/</span>
+        <span style={{ color: T.textSub, fontSize: 13 }}>/</span>
         <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{screen.name}</span>
         <StatusBadge status={screen.status} />
       </div>
@@ -335,7 +335,7 @@ export default function ScreenDetail() {
                 <span style={{ fontSize: 13, color: T.textSub, display: 'flex', alignItems: 'center', gap: 3 }}>
                   <MapPin size={12} /> {screen.Venue?.name || 'Sin sede'}
                 </span>
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textMuted, display: 'inline-block' }} />
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textSub, display: 'inline-block' }} />
                 <code style={{ fontSize: 12, color: T.primary, background: T.primaryDim, padding: '3px 8px', borderRadius: 6, fontFamily: FM }}>
                   {screen.device_id}
                 </code>
@@ -363,7 +363,7 @@ export default function ScreenDetail() {
             ['Playlist', `${playlist.length} elemento${playlist.length !== 1 ? 's' : ''}`],
           ].map(([l, v]) => (
             <div key={l} style={{ flex: '1 1 150px', padding: '13px 16px', borderRadius: 13, background: T.inputBg, border: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>{l}</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSub, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>{l}</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{v}</div>
             </div>
           ))}
@@ -374,7 +374,7 @@ export default function ScreenDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Reproduciendo ahora */}
           <div className="card" style={{ padding: 18 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.primary, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
               Reproduciendo ahora
             </div>
             {nowPlaying ? (
@@ -390,9 +390,9 @@ export default function ScreenDetail() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.textMuted, fontSize: 12.5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.textSub, fontSize: 12.5 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 9, background: T.inputBg, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ImageIcon size={14} color={T.textMuted} />
+                  <ImageIcon size={14} color={T.textSub} />
                 </div>
                 Sin contenido activo
               </div>
@@ -419,7 +419,7 @@ export default function ScreenDetail() {
 
           {/* Información del dispositivo */}
           <div className="card" style={{ padding: 18 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.primary, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
               Información del dispositivo
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -449,8 +449,8 @@ export default function ScreenDetail() {
         <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', minHeight: 320 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FD }}>Playlist</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{playlistQueueSubtitle(playlist.length)}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.primary, fontFamily: FD }}>Playlist</div>
+              <div style={{ fontSize: 12, color: T.textSub, marginTop: 2 }}>{playlistQueueSubtitle(playlist.length)}</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="secondary" size="sm" onClick={() => setShowMediaPicker(true)}>
@@ -475,7 +475,7 @@ export default function ScreenDetail() {
             </div>
           ) : (
             <div>
-              <p style={{ marginBottom: 8, padding: '0 2px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', color: T.textMuted }}>
+              <p style={{ marginBottom: 8, padding: '0 2px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', color: T.textSub }}>
                 Arrastra el asa para reordenar · Usa las flechas si prefieres
               </p>
               <div style={{ borderRadius: 13, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
@@ -501,20 +501,20 @@ export default function ScreenDetail() {
                         onDragEnd={handlePlaylistDragEnd}
                         title="Arrastrar para reordenar"
                         aria-label="Arrastrar para reordenar fila"
-                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textMuted, cursor: 'grab', padding: 6, borderRadius: 6 }}
+                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textSub, cursor: 'grab', padding: 6, borderRadius: 6 }}
                       >
                         <GripVertical size={16} />
                       </button>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} aria-label="Subir" style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.25 : 1, display: 'flex', padding: 1 }}>
+                        <button type="button" onClick={() => moveItem(index, -1)} disabled={index === 0} aria-label="Subir" style={{ background: 'transparent', border: 'none', color: T.textSub, cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.25 : 1, display: 'flex', padding: 1 }}>
                           <ChevronUp size={13} />
                         </button>
-                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === playlist.length - 1} aria-label="Bajar" style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: index === playlist.length - 1 ? 'default' : 'pointer', opacity: index === playlist.length - 1 ? 0.25 : 1, display: 'flex', padding: 1 }}>
+                        <button type="button" onClick={() => moveItem(index, 1)} disabled={index === playlist.length - 1} aria-label="Bajar" style={{ background: 'transparent', border: 'none', color: T.textSub, cursor: index === playlist.length - 1 ? 'default' : 'pointer', opacity: index === playlist.length - 1 ? 0.25 : 1, display: 'flex', padding: 1 }}>
                           <ChevronDown size={13} />
                         </button>
                       </div>
                     </div>
-                    <span style={{ width: 18, textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, flexShrink: 0 }}>{index + 1}</span>
+                    <span style={{ width: 18, textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textSub, flexShrink: 0 }}>{index + 1}</span>
                     <div style={{ position: 'relative', width: 72, height: 48, borderRadius: 10, overflow: 'hidden', background: T.inputBg, flexShrink: 0, border: `1px solid ${T.border}` }}>
                       {isVideoMedia(item) ? (
                         <>
@@ -542,7 +542,7 @@ export default function ScreenDetail() {
                             onChange={(e) => updateDuration(index, e.target.value)}
                             style={{ width: 48, borderRadius: 7, border: `1px solid ${T.inputBorder}`, background: T.inputBg, color: T.text, textAlign: 'center', fontSize: 12.5, fontWeight: 600, padding: '4px 2px' }}
                           />
-                          <span style={{ fontSize: 10.5, color: T.textMuted }}>seg</span>
+                          <span style={{ fontSize: 10.5, color: T.textSub }}>seg</span>
                         </label>
                       )}
                       <button
@@ -550,9 +550,9 @@ export default function ScreenDetail() {
                         onClick={() => removeFromPlaylist(index)}
                         title="Quitar de la playlist"
                         aria-label="Quitar de la playlist"
-                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textMuted, cursor: 'pointer', padding: 7, borderRadius: 8, transition: 'color .15s ease, background .15s ease' }}
+                        style={{ display: 'flex', border: 'none', background: 'transparent', color: T.textSub, cursor: 'pointer', padding: 7, borderRadius: 8, transition: 'color .15s ease, background .15s ease' }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = T.red; e.currentTarget.style.background = T.redDim; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = T.textMuted; e.currentTarget.style.background = 'transparent'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = T.textSub; e.currentTarget.style.background = 'transparent'; }}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -581,7 +581,7 @@ export default function ScreenDetail() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 22px', borderBottom: `1px solid ${T.border}`, flexShrink: 0, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FD }}>Seleccionar media</div>
-                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Elige archivos o súbelos con la zona inferior</div>
+                <div style={{ fontSize: 12, color: T.textSub, marginTop: 2 }}>Elige archivos o súbelos con la zona inferior</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Btn variant="primary" onClick={addSelectedToPlaylist}>Agregar seleccionados ({selectedMediaIds.length})</Btn>
@@ -621,15 +621,15 @@ export default function ScreenDetail() {
                 ) : (
                   <>
                     <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: 0 }}>Arrastra archivos aquí o haz clic para subir</p>
-                    <p style={{ fontSize: 11.5, color: T.textMuted, marginTop: 3 }}>Imágenes y videos (incl. MOV, MP4…), máx. 50 MB</p>
+                    <p style={{ fontSize: 11.5, color: T.textSub, marginTop: 3 }}>Imágenes y videos (incl. MOV, MP4…), máx. 50 MB</p>
                   </>
                 )}
               </button>
 
               {allMedia.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0' }}>
-                  <p style={{ fontSize: 13, color: T.textMuted, margin: 0 }}>No hay más archivos en la biblioteca</p>
-                  <p style={{ fontSize: 11.5, color: T.textMuted, marginTop: 4 }}>Usa la zona de arriba para agregar el primero</p>
+                  <p style={{ fontSize: 13, color: T.textSub, margin: 0 }}>No hay más archivos en la biblioteca</p>
+                  <p style={{ fontSize: 11.5, color: T.textSub, marginTop: 4 }}>Usa la zona de arriba para agregar el primero</p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>

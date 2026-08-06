@@ -120,7 +120,7 @@ export default function Venues() {
           <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
             Sedes
           </h1>
-          <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+          <p style={{ fontSize: 12.5, color: T.textSub, marginTop: 3 }}>
             {venues.length} ubicaci{venues.length === 1 ? 'ón' : 'ones'} · {totalScreens} pantalla{totalScreens !== 1 ? 's' : ''}
           </p>
         </div>
@@ -142,14 +142,14 @@ export default function Venues() {
             placeholder="Buscar sede o dirección…"
             style={{ flex: '0 1 240px', minWidth: 160 }}
           />
-          <span style={{ fontSize: 11.5, color: T.textMuted, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11.5, color: T.textSub, whiteSpace: 'nowrap' }}>
             {venues.length} resultado{venues.length !== 1 ? 's' : ''}
           </span>
         </div>
       </FilterBarRow>
 
       {venues.length === 0 && (
-        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
+        <div className="card" style={{ padding: 44, textAlign: 'center', color: T.textSub, fontSize: 13 }}>
           Sin sedes {hasFilters ? 'con los filtros aplicados' : 'registradas'}.
           {!hasFilters && (
             <button

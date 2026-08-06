@@ -148,7 +148,7 @@ export default function Screens() {
     try {
       const { data } = await api.get('/screens/preview-device-id');
       setForm({ name: '', device_id: data.device_id, venue_id: venues[0]?.id || '', orientation: 'landscape' });
-    } catch (err) {
+    } catch {
       setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
     }
   }
@@ -166,6 +166,10 @@ export default function Screens() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!editing && !form.venue_id) {
+      toast.error('La sede es obligatoria');
+      return;
+    }
     try {
       const payload = { ...form, venue_id: form.venue_id || null };
       if (editing) {
@@ -204,7 +208,7 @@ export default function Screens() {
           <h1 style={{ fontSize: 44, fontWeight: 700, color: T.text, fontFamily: FD, letterSpacing: '-.02em' }}>
             Pantallas
           </h1>
-          <p style={{ fontSize: 12.5, color: T.textMuted, marginTop: 3 }}>
+          <p style={{ fontSize: 12.5, color: T.textSub, marginTop: 3 }}>
             {screens.length} dispositivo{screens.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -224,7 +228,7 @@ export default function Screens() {
             placeholder="Buscar por nombre o device ID…"
             style={{ flex: '0 1 240px', minWidth: 160 }}
           />
-          <span style={{ fontSize: 11.5, color: T.textMuted, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11.5, color: T.textSub, whiteSpace: 'nowrap' }}>
             {screens.length} resultado{screens.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -258,7 +262,7 @@ export default function Screens() {
       </LayoutGroup>
 
       {screens.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '44px 0', color: T.textMuted, fontSize: 13 }}>
+        <div style={{ textAlign: 'center', padding: '44px 0', color: T.textSub, fontSize: 13 }}>
             No hay pantallas {hasFilters ? 'con los filtros aplicados' : 'registradas'}.
             {hasFilters ? (
               <button
