@@ -31,9 +31,13 @@ data/uploads/
 # Android build artifacts
 android/.gradle/
 android/app/build/
+android/app/release/
+android/app/debug/
 android/local.properties
 *.apk
 *.aab
+*.jks
+*.keystore
 
 # Logs
 *.log
