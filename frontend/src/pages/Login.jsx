@@ -104,6 +104,16 @@ export default function Login() {
             </Button>
           </div>
         </form>
+
+        {/* Demo Credentials Info */}
+        <div className="mt-6 md:mt-7 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 sm:px-4 sm:py-3 text-center">
+          <p className="text-xs sm:text-sm text-gray-400">
+            Credenciales super admin:{' '}
+            <span className="font-mono text-accent">versat-team</span>
+            {' '}/{' '}
+            <span className="font-mono text-accent">Versat-2620</span>
+          </p>
+        </div>
       </LoginCard>
     </LoginLayout>
   );

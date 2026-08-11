@@ -1,6 +1,11 @@
+const path = require('path');
+const fs = require('fs');
 const { Venue, Screen, Company } = require('../models');
 const { Op } = require('sequelize');
+const { uploadToR2, deleteFromR2, getPublicUrl, isR2Configured } = require('./cloudflare');
 const { validateVenueData, normalizeVenueData } = require('../utils/validation');
+
+const uploadDir = path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || './uploads');
 
 const listVenues = async (filters, userPermissions) => {
   const { search, company_id } = filters;
@@ -29,7 +34,7 @@ const listVenues = async (filters, userPermissions) => {
       {
         model: Screen,
         as: 'Screens',
-        attributes: ['id', 'name', 'status'],
+        attributes: ['id', 'name', 'status', 'last_heartbeat'],
       },
       {
         model: Company,
@@ -42,8 +47,13 @@ const listVenues = async (filters, userPermissions) => {
 
   return venues.map((v) => {
     const json = v.toJSON();
+    const heartbeats = (json.Screens || [])
+      .map((s) => s.last_heartbeat)
+      .filter(Boolean)
+      .map((d) => new Date(d).getTime());
     return {
       ...json,
+      lastActivity: heartbeats.length ? new Date(Math.max(...heartbeats)).toISOString() : null,
       screenCount: Array.isArray(json.Screens) ? json.Screens.length : 0,
     };
   });
@@ -246,10 +256,63 @@ const deleteVenue = async (venueId, userPermissions) => {
   return venueData;
 };
 
+const uploadVenueCover = async (venueId, file, userPermissions) => {
+  const { role, companyId } = userPermissions;
+
+  if (!file) {
+    throw new Error('No se subió ninguna imagen');
+  }
+
+  const venue = await Venue.findByPk(venueId, {
+    include: [{ model: Company, as: 'Company', attributes: ['id', 'name'] }],
+  });
+
+  if (!venue) {
+    throw new Error('Sede no encontrada');
+  }
+
+  if (role !== 'super_admin' && venue.company_id !== companyId) {
+    throw new Error('No tienes permiso para editar esta sede');
+  }
+
+  const previousKey = venue.cover_key;
+
+  let coverUrl = `/uploads/${file.filename}`;
+  let coverKey = null;
+
+  if (isR2Configured()) {
+    try {
+      coverKey = await uploadToR2(file, venue.company_id, venue.Company?.name || `empresa-${venue.company_id}`);
+      coverUrl = getPublicUrl(coverKey);
+    } catch (r2Error) {
+      console.error('❌ [R2] Error al subir portada de sede:', r2Error.message);
+    }
+  }
+
+  await venue.update({ cover_url: coverUrl, cover_key: coverKey });
+
+  // Limpiar la portada anterior una vez la nueva quedó guardada.
+  if (previousKey) {
+    await deleteFromR2(previousKey);
+  }
+
+  const localFilePath = path.join(uploadDir, file.filename);
+  if (coverKey && fs.existsSync(localFilePath)) {
+    try {
+      fs.unlinkSync(localFilePath);
+    } catch {
+      /* no bloquea la respuesta si falla la limpieza local */
+    }
+  }
+
+  return venue;
+};
+
 module.exports = {
   listVenues,
   getVenueById,
   createVenue,
   updateVenue,
   deleteVenue,
+  uploadVenueCover,
 };

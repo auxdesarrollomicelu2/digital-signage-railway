@@ -147,10 +147,34 @@ const deleteVenue = async (req, res) => {
   }
 };
 
+const uploadVenueCover = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const venue = await venueService.uploadVenueCover(id, req.file, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+
+    res.json({
+      success: true,
+      message: 'Portada de sede actualizada',
+      venue,
+    });
+  } catch (err) {
+    console.error('Error al subir portada de sede:', err);
+    const statusCode = err.message.includes('No se subió') ? 400 :
+                       err.message.includes('no encontrada') ? 404 :
+                       err.message.includes('permiso') ? 403 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listVenues,
   getVenue,
   createVenue,
   updateVenue,
   deleteVenue,
+  uploadVenueCover,
 };

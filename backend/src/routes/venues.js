@@ -1,4 +1,8 @@
 const router = require('express').Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuid } = require('uuid');
 const auth = require('../middleware/auth');
 const {
   listVenues,
@@ -6,7 +10,28 @@ const {
   createVenue,
   updateVenue,
   deleteVenue,
+  uploadVenueCover,
 } = require('../controllers/venues.controller');
+
+const uploadDir = path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || './uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const coverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+});
+
+const uploadCover = multer({
+  storage: coverStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (String(file.mimetype || '').toLowerCase().startsWith('image/')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Solo se permiten imágenes'));
+  },
+});
 
 // Todas las rutas requieren autenticación
 router.use(auth);
@@ -192,6 +217,44 @@ router.post('/', createVenue);
  *         description: Sede no encontrada
  */
 router.put('/:id', updateVenue);
+
+/**
+ * @swagger
+ * /api/venues/{id}/cover:
+ *   post:
+ *     summary: Subir/actualizar la foto de portada de una sede
+ *     tags: [Venues]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cover
+ *             properties:
+ *               cover:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Portada actualizada exitosamente
+ *       400:
+ *         description: No se subió ninguna imagen o formato inválido
+ *       403:
+ *         description: No tienes permiso para editar esta sede
+ *       404:
+ *         description: Sede no encontrada
+ */
+router.post('/:id/cover', uploadCover.single('cover'), uploadVenueCover);
 
 /**
  * @swagger
