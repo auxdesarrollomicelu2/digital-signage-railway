@@ -59,7 +59,7 @@ export default function VenueCard({ venue: v, empresaName, onViewScreens, onEdit
       onMouseLeave={() => setHov(false)}
       onClick={hasCover ? undefined : pickCover}
       style={{
-        position: 'relative', aspectRatio: '3 / 4', borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
+        position: 'relative', aspectRatio: '4 / 3', height: '100%', borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
         animationDelay: `${delay}ms`, background: '#0a0d12',
         boxShadow: hov
           ? `0 20px 44px -14px rgba(0,0,0,.6), 0 0 0 1px ${NEON}80, 0 0 22px 2px ${NEON}55, 0 0 44px 8px ${NEON}25`

@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { FB } from '../../styles/tokens';
 
 /** Botón con ripple + glass-swipe — portado de SignageControlCenter_v3.jsx (Btn). */
-export default function Btn({ children, onClick, variant = 'ghost', size = 'md', style, disabled, accentColor, ...rest }) {
+export default function Btn({ children, onClick, variant = 'ghost', size = 'md', style, disabled, loading, accentColor, ...rest }) {
   const { T } = useTheme();
   const [ripples, setRipples] = useState([]);
   const [hover, setHover] = useState(false);
   const ac = accentColor || T.primary;
 
+  // Deshabilitar si está loading o disabled
+  const isDisabled = disabled || loading;
+
   const handleClick = (e) => {
-    if (disabled) return;
+    if (isDisabled) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const id = Date.now() + Math.random();
     setRipples((r) => [...r, { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
@@ -31,23 +35,30 @@ export default function Btn({ children, onClick, variant = 'ghost', size = 'md',
   return (
     <motion.button
       onClick={handleClick}
-      disabled={disabled}
+      disabled={isDisabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      whileTap={disabled ? {} : { scale: 0.96 }}
-      whileHover={disabled ? {} : { y: variant === 'primary' ? -1 : 0 }}
+      whileTap={isDisabled ? {} : { scale: 0.96 }}
+      whileHover={isDisabled ? {} : { y: variant === 'primary' ? -1 : 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       style={{
-        position: 'relative', overflow: 'hidden', cursor: disabled ? 'not-allowed' : 'pointer',
+        position: 'relative', overflow: 'hidden', cursor: isDisabled ? 'not-allowed' : 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         borderRadius: 10, padding: pd, fontSize: fs, fontWeight: 600, fontFamily: FB,
         background: styles.bg, color: styles.color, border: styles.border,
         boxShadow: variant === 'primary' ? (hover ? styles.shadow : 'none') : 'none',
-        opacity: disabled ? 0.45 : 1, ...style,
+        opacity: isDisabled ? 0.45 : 1, ...style,
       }}
       {...rest}
     >
-      {children}
+      {loading ? (
+        <>
+          <Loader2 size={fs + 2} className="animate-spin" />
+          {children}
+        </>
+      ) : (
+        children
+      )}
       {ripples.map((r) => (
         <span
           key={r.id}
@@ -57,7 +68,7 @@ export default function Btn({ children, onClick, variant = 'ghost', size = 'md',
           }}
         />
       ))}
-      {variant === 'primary' && hover && (
+      {variant === 'primary' && hover && !loading && (
         <span
           style={{
             position: 'absolute', top: 0, left: '-100%', width: '55%', height: '100%',

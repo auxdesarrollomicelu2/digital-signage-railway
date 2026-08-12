@@ -23,6 +23,7 @@ export default function Venues() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [screensModalTarget, setScreensModalTarget] = useState(null);
   const [form, setForm] = useState({ name: '', address: '', description: '' });
 
@@ -100,6 +101,7 @@ export default function Venues() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    setDeleting(true);
     try {
       await api.delete(`/venues/${deleteTarget.id}`);
       toast.success('Sede eliminada');
@@ -107,6 +109,8 @@ export default function Venues() {
       loadVenues();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error eliminando sede');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -191,6 +195,7 @@ export default function Venues() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         itemName={deleteTarget?.name}
+        loading={deleting}
       />
       {screensModalTarget && (
         <SedeScreensModal sede={screensModalTarget} onClose={() => setScreensModalTarget(null)} />

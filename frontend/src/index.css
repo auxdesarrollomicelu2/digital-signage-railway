@@ -99,7 +99,7 @@ input:-webkit-autofill:focus {
 @media (max-width: 900px) { .screen-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
 .detail-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
 @media (max-width: 1100px) { .detail-grid { grid-template-columns: 1fr !important; } }
-.sede-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.sede-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; grid-auto-rows: 1fr; }
 @media (max-width: 1300px) { .sede-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .sede-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } }
 @media (max-width: 560px) { .sede-grid { grid-template-columns: 1fr; } }

@@ -17,7 +17,10 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({
+    username: '',
+    password: ''
+  });
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -34,10 +37,59 @@ export default function Login() {
     );
   }
 
+  // Validar campo individual
+  const validateField = (field, value) => {
+    if (!value.trim()) {
+      return field === 'username' ? 'Usuario requerido' : 'Contraseña requerida';
+    }
+    return '';
+  };
+
+  // Manejar cambio de username
+  const handleUsernameChange = (e) => {
+    const value = e.target.value;
+    setUsername(value);
+    // Limpiar error cuando el usuario empieza a escribir
+    if (errors.username) {
+      setErrors(prev => ({ ...prev, username: '' }));
+    }
+  };
+
+  // Manejar cambio de password
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    // Limpiar error cuando el usuario empieza a escribir
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: '' }));
+    }
+  };
+
+  // Validar campo al perder foco
+  const handleBlur = (field, value) => {
+    const error = validateField(field, value);
+    if (error) {
+      setErrors(prev => ({ ...prev, [field]: error }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar campos antes de enviar
+    const usernameError = validateField('username', username);
+    const passwordError = validateField('password', password);
+    
+    if (usernameError || passwordError) {
+      setErrors({
+        username: usernameError,
+        password: passwordError
+      });
+      return;
+    }
+
     setLoading(true);
-    setError('');
+    setErrors({ username: '', password: '' });
     
     try {
       await login(username, password);
@@ -45,8 +97,18 @@ export default function Login() {
       navigate('/');
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Error de conexión';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      
+      // Si son credenciales inválidas (401), marcar ambos campos
+      if (err.response?.status === 401) {
+        setErrors({
+          username: 'Credenciales inválidas',
+          password: 'Credenciales inválidas'
+        });
+        toast.error('Usuario o contraseña incorrectos');
+      } else {
+        // Otros errores
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -74,8 +136,9 @@ export default function Login() {
             placeholder="Ingresa tu usuario"
             icon={User}
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            error={error && !username ? 'Usuario requerido' : ''}
+            onChange={handleUsernameChange}
+            onBlur={(e) => handleBlur('username', e.target.value)}
+            error={errors.username}
             required
             variant="dark"
           />
@@ -84,8 +147,9 @@ export default function Login() {
             label="Contraseña"
             placeholder="Ingresa tu contraseña"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={error && !password ? 'Contraseña requerida' : ''}
+            onChange={handlePasswordChange}
+            onBlur={(e) => handleBlur('password', e.target.value)}
+            error={errors.password}
             required
             autoComplete="current-password"
             variant="dark"

@@ -196,6 +196,7 @@ export default function MediaPage() {
   const [drawerItem, setDrawerItem] = useState(null);
   const [viewerIndex, setViewerIndex] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef(null);
 
   const {
@@ -286,6 +287,7 @@ export default function MediaPage() {
 
   async function confirmDelete() {
     if (!deleteTarget) return;
+    setDeleting(true);
     try {
       await api.delete(`/media/${deleteTarget.id}`);
       toast.success('Archivo eliminado');
@@ -294,6 +296,7 @@ export default function MediaPage() {
     } catch {
       toast.error('Error eliminando archivo');
     } finally {
+      setDeleting(false);
       setDeleteTarget(null);
     }
   }
@@ -437,6 +440,7 @@ export default function MediaPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         itemName={deleteTarget?.original_name}
+        loading={deleting}
       />
     </div>
   );

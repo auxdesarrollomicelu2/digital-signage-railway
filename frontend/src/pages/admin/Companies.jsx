@@ -23,6 +23,7 @@ export default function Companies() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);
   const [filters, setFilters] = useState({
     role: '',
@@ -123,6 +124,7 @@ export default function Companies() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    setDeleting(true);
     try {
       await api.delete(`/companies/${deleteTarget.id}/hard-delete`);
       toast.success('Empresa eliminada permanentemente');
@@ -130,6 +132,8 @@ export default function Companies() {
       loadCompanies();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error eliminando empresa');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -211,6 +215,7 @@ export default function Companies() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         itemName={deleteTarget?.name}
+        loading={deleting}
       />
 
       <ConfirmModal

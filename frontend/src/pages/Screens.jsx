@@ -29,6 +29,7 @@ export default function Screens() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ name: '', device_id: '', venue_id: '', orientation: 'landscape' });
   const [thumbnails, setThumbnails] = useState({}); // { [screenId]: { url, mime_type } }
 
@@ -188,6 +189,7 @@ export default function Screens() {
 
   async function handleDelete() {
     if (!deleteTarget) return;
+    setDeleting(true);
     try {
       await api.delete(`/screens/${deleteTarget.id}`);
       toast.success('Pantalla eliminada');
@@ -195,6 +197,8 @@ export default function Screens() {
       loadScreens();
     } catch {
       toast.error('Error eliminando pantalla');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -296,6 +300,7 @@ export default function Screens() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         itemName={deleteTarget?.name}
+        loading={deleting}
       />
 
       <MagneticFAB onClick={openCreate} label="Nueva pantalla" icon={Monitor} color={T.blue} />

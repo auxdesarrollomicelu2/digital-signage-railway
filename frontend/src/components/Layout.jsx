@@ -10,6 +10,7 @@ import usePermissions from '../hooks/usePermissions';
 import { useTheme } from '../context/ThemeContext';
 import Backdrop from './Backdrop';
 import ClickSpark from './ClickSpark';
+import ConfirmModal from './shared/ConfirmModal';
 import { FD, FB } from '../styles/tokens';
 
 const SIDEBAR_KEY = 'ds_sidebar_collapsed';
@@ -93,6 +94,7 @@ export default function Layout({ children }) {
       return false;
     }
   });
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -106,7 +108,12 @@ export default function Layout({ children }) {
     });
   }
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     navigate('/login');
   };
@@ -212,7 +219,7 @@ export default function Layout({ children }) {
             {!collapsed && (
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={handleLogoutClick}
                 aria-label="Salir"
                 title="Salir"
                 style={{
@@ -229,7 +236,7 @@ export default function Layout({ children }) {
           {collapsed && (
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               aria-label="Salir"
               title="Salir"
               style={{
@@ -278,6 +285,17 @@ export default function Layout({ children }) {
           {children}
         </main>
       </div>
+
+      <ConfirmModal
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        icon={LogOut}
+        title="¿Cerrar sesión?"
+        message="Se cerrará tu sesión actual y regresarás a la pantalla de inicio."
+        confirmLabel="Cerrar sesión"
+        color={T.primary}
+      />
     </div>
     </ClickSpark>
   );
