@@ -74,7 +74,9 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
+    // Prevenir el comportamiento por defecto del formulario
     e.preventDefault();
+    e.stopPropagation();
     
     // Validar campos antes de enviar
     const usernameError = validateField('username', username);
@@ -85,6 +87,8 @@ export default function Login() {
         username: usernameError,
         password: passwordError
       });
+      // Mostrar toast de error para que sea más visible
+      toast.error('Por favor completa todos los campos requeridos');
       return;
     }
 
@@ -94,7 +98,7 @@ export default function Login() {
     try {
       await login(username, password);
       toast.success('Bienvenido');
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Error de conexión';
       
@@ -129,7 +133,11 @@ export default function Login() {
         />
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="mt-6 sm:mt-8 md:mt-9 space-y-4 sm:space-y-5 md:space-y-5">
+        <form 
+          onSubmit={handleSubmit} 
+          className="mt-6 sm:mt-8 md:mt-9 space-y-4 sm:space-y-5 md:space-y-5"
+          noValidate
+        >
           <Input
             label="Usuario"
             type="text"
@@ -141,6 +149,8 @@ export default function Login() {
             error={errors.username}
             required
             variant="dark"
+            autoComplete="username"
+            name="username"
           />
 
           <PasswordInput
@@ -153,6 +163,7 @@ export default function Login() {
             required
             autoComplete="current-password"
             variant="dark"
+            name="password"
           />
 
           {/* Submit Button */}
