@@ -298,7 +298,17 @@ export default function App() {
       client.subscribe(`signage/${DEVICE_ID}/playlist`, { qos: 1 });
       client.subscribe(`signage/${DEVICE_ID}/command`, { qos: 1 });
       syncPlaylistFromApi();
-      client.publish(`signage/${DEVICE_ID}/heartbeat`, JSON.stringify({ timestamp: Date.now(), status: 'connected' }));
+      
+      // Obtener versión APK de Android si está disponible
+      const apkVersion = globalThis.AndroidInterface?.getApkVersion?.() || 1;
+      client.publish(
+        `signage/${DEVICE_ID}/heartbeat`, 
+        JSON.stringify({ 
+          timestamp: Date.now(), 
+          status: 'connected',
+          apk_version: apkVersion
+        })
+      );
     });
 
     client.on('message', (topic, message) => {
@@ -306,6 +316,14 @@ export default function App() {
         const data = JSON.parse(message.toString());
         if (topic.endsWith('/playlist') && Array.isArray(data?.items)) applyPlaylist(data.items, 'mqtt');
         if (topic.endsWith('/command') && data.type === 'reload') globalThis.location.reload();
+        
+        // Handler para actualización de APK (solo Android)
+        if (topic.endsWith('/command') && data.type === 'update_apk') {
+          if (globalThis.AndroidInterface?.downloadAndInstallAPK) {
+            globalThis.AndroidInterface.downloadAndInstallAPK(data.download_url, data.sha256, data.version_name);
+            console.log('[Player] Comando de actualización APK enviado a Android:', data.version_name);
+          }
+        }
       } catch (err) {
         console.error('[Player] Error parsing message:', err);
       }
@@ -318,7 +336,16 @@ export default function App() {
 
     heartbeatRef.current = setInterval(() => {
       if (client.connected) {
-        client.publish(`signage/${DEVICE_ID}/heartbeat`, JSON.stringify({ timestamp: Date.now(), status: 'playing' }));
+        // Obtener versión APK de Android si está disponible
+        const apkVersion = globalThis.AndroidInterface?.getApkVersion?.() || 1;
+        client.publish(
+          `signage/${DEVICE_ID}/heartbeat`, 
+          JSON.stringify({ 
+            timestamp: Date.now(), 
+            status: 'playing',
+            apk_version: apkVersion
+          })
+        );
       }
     }, 30000);
 

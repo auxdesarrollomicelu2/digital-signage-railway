@@ -57,6 +57,7 @@ app.use('/api/venues', require('./routes/venues'));
 app.use('/api/screens', require('./routes/screens'));
 app.use('/api/media', require('./routes/media'));
 app.use('/api/audit', require('./routes/audit'));
+app.use('/api/apk', require('./routes/apk'));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

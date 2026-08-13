@@ -2,6 +2,8 @@ package com.digitalsignage.player
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.DownloadManager
+import android.content.IntentFilter
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -41,6 +43,7 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var errorLayout: LinearLayout
     private lateinit var statusText: TextView
+    private lateinit var downloadReceiver: DownloadCompleteReceiver
 
     private val handler = Handler(Looper.getMainLooper())
     private var hasError = false
@@ -65,6 +68,10 @@ class MainActivity : Activity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
+        // Registrar receiver para descargas completadas
+        downloadReceiver = DownloadCompleteReceiver()
+        registerReceiver(downloadReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
 
         applyImmersive()
         setupViews()
@@ -156,6 +163,9 @@ class MainActivity : Activity() {
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
         webView.webChromeClient = WebChromeClient()
+
+        // Agregar bridge para recibir comandos de actualización desde JavaScript
+        webView.addJavascriptInterface(UpdateBridge(this), "AndroidInterface")
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -331,6 +341,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
+        unregisterReceiver(downloadReceiver)
         webView.destroy()
     }
 }

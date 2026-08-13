@@ -7,6 +7,7 @@ const Screen = sequelize.define('Screen', {
   orientation: { type: DataTypes.STRING, defaultValue: 'landscape' },
   status: { type: DataTypes.STRING, defaultValue: 'offline' },
   last_heartbeat: { type: DataTypes.DATE },
+  current_apk_version: { type: DataTypes.INTEGER, defaultValue: 1 },
 }, {
   schema: 'digital_signage',
   tableName: 'Screens'

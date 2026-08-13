@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
-import { Monitor, Building2, MapPin, Flag } from 'lucide-react';
+import { Monitor, Building2, MapPin, Flag, Download } from 'lucide-react';
 import api from '../api';
 import toast from 'react-hot-toast';
 import useScreenFilters from '../hooks/useScreenFilters';
@@ -13,6 +13,7 @@ import MagneticFAB from '../components/shared/MagneticFAB';
 import ScreenCard from '../components/shared/ScreenCard';
 import ScreenModal from '../components/shared/ScreenModal';
 import DeleteModal from '../components/shared/DeleteModal';
+import Btn from '../components/shared/Btn';
 import { useTheme } from '../context/ThemeContext';
 import usePermissions from '../hooks/usePermissions';
 import { FD } from '../styles/tokens';
@@ -30,6 +31,8 @@ export default function Screens() {
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [sendingGlobalUpdate, setSendingGlobalUpdate] = useState(false);
+  const [selectedCompanyForCreate, setSelectedCompanyForCreate] = useState('');
   const [form, setForm] = useState({ name: '', device_id: '', venue_id: '', orientation: 'landscape' });
   const [thumbnails, setThumbnails] = useState({}); // { [screenId]: { url, mime_type } }
 
@@ -132,25 +135,51 @@ export default function Screens() {
     setThumbnails(map);
   }
 
-  async function loadVenues() {
+  async function loadVenues(companyId = null) {
     try {
-      const { data } = await api.get('/venues');
+      const url = companyId ? `/venues?company_id=${companyId}` : '/venues';
+      const { data } = await api.get(url);
       setVenues(data);
+      return data;
     } catch {
-      /* ignore */
+      return [];
     }
   }
 
   async function openCreate() {
     setEditing(null);
-    setForm({ name: '', device_id: '', venue_id: venues[0]?.id ? String(venues[0].id) : '', orientation: 'landscape' });
+    
+    // Si es super admin y no hay empresa seleccionada, elegir la primera
+    let companyId = selectedCompanyForCreate;
+    if (isSuperAdmin && !companyId && companies.length > 0) {
+      companyId = String(companies[0].id);
+      setSelectedCompanyForCreate(companyId);
+    }
+    
+    // Cargar venues de la empresa seleccionada
+    const venuesList = isSuperAdmin && companyId 
+      ? await loadVenues(companyId)
+      : venues;
+    
+    const firstVenueId = venuesList[0]?.id ? String(venuesList[0].id) : '';
+    
+    setForm({ 
+      name: '', 
+      device_id: '', 
+      venue_id: firstVenueId, 
+      orientation: 'landscape',
+      company_id: companyId || '' 
+    });
     setShowModal(true);
     
-    try {
-      const { data } = await api.get('/screens/preview-device-id');
-      setForm({ name: '', device_id: data.device_id, venue_id: venues[0]?.id || '', orientation: 'landscape' });
-    } catch {
-      setForm({ name: '', device_id: '', venue_id: venues[0]?.id || '', orientation: 'landscape' });
+    // Obtener device_id preview según la sede seleccionada
+    if (firstVenueId) {
+      try {
+        const { data } = await api.get(`/screens/preview-device-id?venue_id=${firstVenueId}`);
+        setForm(prev => ({ ...prev, device_id: data.device_id }));
+      } catch (err) {
+        console.error('Error obteniendo device_id preview:', err);
+      }
     }
   }
 
@@ -202,6 +231,71 @@ export default function Screens() {
     }
   }
 
+  async function sendGlobalApkUpdate() {
+    const onlineCount = screens.filter((s) => s.status === 'online').length;
+    
+    if (onlineCount === 0) {
+      toast.error('No hay pantallas online para actualizar');
+      return;
+    }
+
+    // Confirmación antes de enviar
+    const confirmMessage = `¿Enviar actualización APK a ${onlineCount} pantalla${onlineCount !== 1 ? 's' : ''} online?`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setSendingGlobalUpdate(true);
+    try {
+      const { data } = await api.post('/screens/broadcast/send-update');
+      toast.success(`✅ ${data.message}\nVersión: ${data.version.version_name}`, { duration: 5000 });
+    } catch (err) {
+      console.error('[Screens] Error enviando actualización global:', err);
+      const errorMsg = err.response?.data?.error || 'Error enviando actualización';
+      toast.error(errorMsg);
+    } finally {
+      setSendingGlobalUpdate(false);
+    }
+  }
+
+  async function handleCompanyChangeInModal(companyId) {
+    setSelectedCompanyForCreate(companyId);
+    
+    // Cargar venues de la nueva empresa
+    const venuesList = await loadVenues(companyId);
+    const firstVenueId = venuesList[0]?.id ? String(venuesList[0].id) : '';
+    
+    setForm(prev => ({ 
+      ...prev, 
+      venue_id: firstVenueId,
+      company_id: companyId 
+    }));
+    
+    // Obtener nuevo device_id preview
+    if (firstVenueId) {
+      try {
+        const { data } = await api.get(`/screens/preview-device-id?venue_id=${firstVenueId}`);
+        setForm(prev => ({ ...prev, device_id: data.device_id }));
+      } catch (err) {
+        console.error('Error obteniendo device_id preview:', err);
+      }
+    }
+  }
+
+  async function handleVenueChangeInModal(venueId) {
+    setForm(prev => ({ ...prev, venue_id: venueId }));
+    
+    // Obtener nuevo device_id preview según la sede
+    if (venueId) {
+      try {
+        const { data } = await api.get(`/screens/preview-device-id?venue_id=${venueId}`);
+        setForm(prev => ({ ...prev, device_id: data.device_id }));
+      } catch (err) {
+        console.error('Error obteniendo device_id preview:', err);
+      }
+    }
+  }
+
   return (
     <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -216,6 +310,21 @@ export default function Screens() {
             {screens.length} dispositivo{screens.length !== 1 ? 's' : ''}
           </p>
         </div>
+        {isSuperAdmin && (
+          <Btn
+            variant="secondary"
+            onClick={sendGlobalApkUpdate}
+            disabled={sendingGlobalUpdate || screens.filter((s) => s.status === 'online').length === 0}
+            accentColor={T.accent}
+            style={{ 
+              opacity: screens.filter((s) => s.status === 'online').length === 0 ? 0.5 : 1,
+              gap: 8,
+            }}
+          >
+            <Download size={15} style={{ animation: sendingGlobalUpdate ? 'pulse 1s ease-in-out infinite' : 'none' }} />
+            {sendingGlobalUpdate ? 'Enviando actualización...' : '📥 Actualizar APK (todas las pantallas)'}
+          </Btn>
+        )}
       </div>
 
       <FilterBarRow>
@@ -293,6 +402,11 @@ export default function Screens() {
         form={form}
         setForm={setForm}
         venues={venues}
+        companies={companies}
+        isSuperAdmin={isSuperAdmin}
+        selectedCompanyForCreate={selectedCompanyForCreate}
+        onCompanyChange={handleCompanyChangeInModal}
+        onVenueChange={handleVenueChangeInModal}
         isEdit={!!editing}
       />
       <DeleteModal

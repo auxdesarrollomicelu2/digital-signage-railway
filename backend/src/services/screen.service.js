@@ -42,6 +42,23 @@ async function generateDeviceIdForCompany(companyId) {
   return `C${companyId}-SCREEN-${String(nextNumber).padStart(3, '0')}`;
 }
 
+async function generateDeviceIdForVenue(venueId, userPermissions) {
+  const { role, companyId } = userPermissions;
+  
+  const venue = await Venue.findByPk(venueId);
+  if (!venue) {
+    throw new Error('Sede no encontrada');
+  }
+  
+  // Verificar permiso
+  if (role !== 'super_admin' && venue.company_id !== companyId) {
+    throw new Error('No tienes permiso para crear pantallas en esta sede');
+  }
+  
+  // Generar device_id basado en la empresa de la sede
+  return generateDeviceIdForCompany(venue.company_id);
+}
+
 function normalizeMediaUrl(url) {
   if (!url) return '';
   
@@ -482,6 +499,7 @@ module.exports = {
   normalizeMediaUrl,
   getPlaylistByDeviceId,
   generateDeviceIdForCompany,
+  generateDeviceIdForVenue,
   listScreens,
   getScreenById,
   createScreen,

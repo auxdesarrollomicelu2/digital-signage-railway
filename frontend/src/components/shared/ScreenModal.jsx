@@ -7,7 +7,20 @@ import { useTheme } from '../../context/ThemeContext';
 /**
  * Modal de crear/editar pantalla
  */
-export default function ScreenModal({ open, onClose, onSubmit, form, setForm, venues, isEdit }) {
+export default function ScreenModal({ 
+  open, 
+  onClose, 
+  onSubmit, 
+  form, 
+  setForm, 
+  venues, 
+  companies = [],
+  isSuperAdmin = false,
+  selectedCompanyForCreate = '',
+  onCompanyChange,
+  onVenueChange,
+  isEdit 
+}) {
   const { T } = useTheme();
 
   return (
@@ -19,6 +32,16 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
       accent={T.blue}
     >
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {isSuperAdmin && !isEdit && (
+          <FormSelect
+            label="Empresa"
+            required
+            value={selectedCompanyForCreate}
+            onChange={onCompanyChange}
+            options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
+            placeholder="Seleccionar empresa"
+          />
+        )}
         <Input
           label="Nombre"
           value={form.name}
@@ -31,7 +54,7 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
           label="Device ID"
           value={form.device_id}
           onChange={(e) => setForm({ ...form, device_id: e.target.value })}
-          placeholder="Ej: screen-005"
+          placeholder="Ej: C2-SCREEN-001"
           disabled={isEdit}
           required
           variant="dark"
@@ -40,7 +63,7 @@ export default function ScreenModal({ open, onClose, onSubmit, form, setForm, ve
           label="Sede"
           required
           value={form.venue_id}
-          onChange={(v) => setForm({ ...form, venue_id: v })}
+          onChange={onVenueChange || ((v) => setForm({ ...form, venue_id: v }))}
           options={venues.map((v) => ({ value: String(v.id), label: v.name }))}
           placeholder="Seleccionar sede"
         />

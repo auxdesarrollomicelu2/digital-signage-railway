@@ -21,13 +21,24 @@ const getPlaylistByDevice = async (req, res) => {
 
 const previewDeviceId = async (req, res) => {
   try {
-    const { companyId } = req.user;
+    const { venue_id } = req.query;
     
-    if (!companyId) {
-      return res.status(400).json({ error: 'companyId no encontrado en el token' });
+    if (!venue_id) {
+      // Fallback: generar basado en company
+      const { companyId } = req.user;
+      if (!companyId) {
+        return res.status(400).json({ error: 'companyId no encontrado en el token' });
+      }
+      const device_id = await screenService.generateDeviceIdForCompany(companyId);
+      return res.json({ device_id });
     }
     
-    const device_id = await screenService.generateDeviceIdForCompany(companyId);
+    // Generar device_id basado en la sede seleccionada
+    const device_id = await screenService.generateDeviceIdForVenue(venue_id, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+    
     res.json({ device_id });
   } catch (err) {
     console.error('[previewDeviceId] Error completo:', err);
@@ -244,6 +255,167 @@ const sendCommand = async (req, res) => {
   }
 };
 
+const sendUpdateCommand = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Only super admin can send update commands
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Solo super admin puede enviar actualizaciones' });
+    }
+
+    const screen = await screenService.validateScreenPermission(id, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+
+    // Get latest APK version
+    const { ApkVersion } = require('../models');
+    const latestVersion = await ApkVersion.findOne({
+      where: { is_active: true },
+      order: [['version_code', 'DESC']],
+    });
+
+    if (!latestVersion) {
+      return res.status(404).json({ error: 'No hay versiones de APK disponibles' });
+    }
+
+    // Publish MQTT command
+    const updateCommand = {
+      type: 'update_apk',
+      version_code: latestVersion.version_code,
+      version_name: latestVersion.version_name,
+      download_url: `${process.env.BACKEND_URL}/api/apk/download/${latestVersion.id}`,
+      sha256: latestVersion.sha256,
+    };
+
+    publishCommand(screen.device_id, updateCommand);
+
+    await logAudit({
+      userId: req.user.companyId,
+      userName: req.user.username,
+      action: 'update',
+      resourceType: 'Screen',
+      resourceId: screen.id,
+      resourceName: screen.name,
+      oldValues: null,
+      newValues: { command: 'update_apk', version: latestVersion.version_name },
+      companyId: screen.Venue?.company_id,
+    });
+
+    res.json({
+      success: true,
+      message: `Comando de actualización enviado a ${screen.device_id}`,
+      version: {
+        version_code: latestVersion.version_code,
+        version_name: latestVersion.version_name,
+      },
+    });
+  } catch (err) {
+    console.error('[sendUpdateCommand] Error:', err);
+    const statusCode = err.message.includes('no encontrada') ? 404 :
+                       err.message.includes('permiso') ? 403 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
+const sendUpdateCommandToAll = async (req, res) => {
+  try {
+    // Only super admin can send update commands
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Solo super admin puede enviar actualizaciones' });
+    }
+
+    // Get latest APK version
+    const { ApkVersion, Screen } = require('../models');
+    const latestVersion = await ApkVersion.findOne({
+      where: { is_active: true },
+      order: [['version_code', 'DESC']],
+    });
+
+    if (!latestVersion) {
+      return res.status(404).json({ error: 'No hay versiones de APK disponibles' });
+    }
+
+    // Get all online screens
+    const onlineScreens = await Screen.findAll({
+      where: { status: 'online' },
+      attributes: ['id', 'device_id', 'name', 'current_apk_version'],
+    });
+
+    if (onlineScreens.length === 0) {
+      return res.status(404).json({ error: 'No hay pantallas online para actualizar' });
+    }
+
+    // Filter screens that need update (current version < latest version)
+    const screensNeedingUpdate = onlineScreens.filter(
+      screen => (screen.current_apk_version || 1) < latestVersion.version_code
+    );
+
+    if (screensNeedingUpdate.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Todas las pantallas online ya tienen la última versión',
+        sent_to: 0,
+        already_updated: onlineScreens.length,
+        version: {
+          version_code: latestVersion.version_code,
+          version_name: latestVersion.version_name,
+        },
+      });
+    }
+
+    // Prepare MQTT command
+    const updateCommand = {
+      type: 'update_apk',
+      version_code: latestVersion.version_code,
+      version_name: latestVersion.version_name,
+      download_url: `${process.env.BACKEND_URL}/api/apk/download/${latestVersion.id}`,
+      sha256: latestVersion.sha256,
+    };
+
+    // Send command only to screens that need update
+    let sentCount = 0;
+    for (const screen of screensNeedingUpdate) {
+      try {
+        publishCommand(screen.device_id, updateCommand);
+        sentCount++;
+        
+        // Log audit for each screen
+        await logAudit({
+          userId: req.user.companyId,
+          userName: req.user.username,
+          action: 'update',
+          resourceType: 'Screen',
+          resourceId: screen.id,
+          resourceName: screen.name,
+          oldValues: { apk_version: screen.current_apk_version || 1 },
+          newValues: { command: 'update_apk_broadcast', target_version: latestVersion.version_name },
+          companyId: req.user.companyId,
+        });
+      } catch (err) {
+        console.error(`[sendUpdateCommandToAll] Error enviando a ${screen.device_id}:`, err);
+      }
+    }
+
+    const alreadyUpdated = onlineScreens.length - screensNeedingUpdate.length;
+    
+    res.json({
+      success: true,
+      message: `Actualización enviada a ${sentCount} pantalla${sentCount !== 1 ? 's' : ''}${alreadyUpdated > 0 ? `. ${alreadyUpdated} ya tenía${alreadyUpdated !== 1 ? 'n' : ''} la última versión` : ''}`,
+      sent_to: sentCount,
+      already_updated: alreadyUpdated,
+      version: {
+        version_code: latestVersion.version_code,
+        version_name: latestVersion.version_name,
+      },
+    });
+  } catch (err) {
+    console.error('[sendUpdateCommandToAll] Error:', err);
+    res.status(500).json({ error: err.message || 'Error enviando actualización' });
+  }
+};
+
 module.exports = {
   getPlaylistByDevice,
   previewDeviceId,
@@ -254,4 +426,6 @@ module.exports = {
   deleteScreen,
   assignPlaylist,
   sendCommand,
+  sendUpdateCommand,
+  sendUpdateCommandToAll,
 };

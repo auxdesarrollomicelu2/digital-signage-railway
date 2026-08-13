@@ -39,7 +39,13 @@ function setupExternalBroker() {
   client.on('message', (topic, message) => {
     const match = topic.match(/^signage\/(.+)\/heartbeat$/);
     if (match) {
-      handleHeartbeat(match[1]);
+      try {
+        const payload = JSON.parse(message.toString());
+        handleHeartbeat(match[1], payload);
+      } catch (err) {
+        // Si no es JSON, usar formato legacy (sin datos adicionales)
+        handleHeartbeat(match[1]);
+      }
     }
   });
 
@@ -89,7 +95,13 @@ function setupEmbeddedBroker() {
   client.on('message', (topic, message) => {
     const match = topic.match(/^signage\/(.+)\/heartbeat$/);
     if (match) {
-      handleHeartbeat(match[1]);
+      try {
+        const payload = JSON.parse(message.toString());
+        handleHeartbeat(match[1], payload);
+      } catch (err) {
+        // Si no es JSON, usar formato legacy (sin datos adicionales)
+        handleHeartbeat(match[1]);
+      }
     }
   });
 
@@ -104,13 +116,20 @@ function setupEmbeddedBroker() {
   return aedesInstance;
 }
 
-async function handleHeartbeat(deviceId) {
+async function handleHeartbeat(deviceId, payload = {}) {
   try {
     const { Screen } = require('../models');
-    await Screen.update(
-      { status: 'online', last_heartbeat: new Date() },
-      { where: { device_id: deviceId } }
-    );
+    const updateData = { 
+      status: 'online', 
+      last_heartbeat: new Date() 
+    };
+    
+    // Si el player reporta su versión APK, guardarla
+    if (payload.apk_version && typeof payload.apk_version === 'number') {
+      updateData.current_apk_version = payload.apk_version;
+    }
+    
+    await Screen.update(updateData, { where: { device_id: deviceId } });
   } catch (err) {
     console.error('[MQTT] Error heartbeat:', err.message);
   }
