@@ -10,7 +10,10 @@ const Screen = sequelize.define('Screen', {
   current_apk_version: { type: DataTypes.INTEGER, defaultValue: 1 },
 }, {
   schema: 'digital_signage',
-  tableName: 'Screens'
+  tableName: 'Screens',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
 });
 
 module.exports = Screen;

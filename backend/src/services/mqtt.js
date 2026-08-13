@@ -121,7 +121,7 @@ async function handleHeartbeat(deviceId, payload = {}) {
     const { Screen } = require('../models');
     const updateData = { 
       status: 'online', 
-      last_heartbeat: new Date() 
+      last_heartbeat: new Date().toISOString()  // ← UTC formato ISO
     };
     
     // Si el player reporta su versión APK, guardarla
