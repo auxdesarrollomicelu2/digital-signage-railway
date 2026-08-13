@@ -404,6 +404,46 @@ router.post('/:id/command', sendCommand);
 
 /**
  * @swagger
+ * /api/screens/broadcast/send-update:
+ *   post:
+ *     summary: Enviar comando de actualización APK a todas las pantallas online (Super Admin)
+ *     description: |
+ *       Envía comando MQTT de actualización a todas las pantallas que estén online.
+ *       Solo super admin puede ejecutar este comando.
+ *     tags: [Screens]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Comando de actualización enviado a todas las pantallas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 sent_to:
+ *                   type: integer
+ *                   description: Número de pantallas a las que se envió el comando
+ *                 version:
+ *                   type: object
+ *                   properties:
+ *                     version_code:
+ *                       type: integer
+ *                     version_name:
+ *                       type: string
+ *       403:
+ *         description: No tienes permiso (solo super admin)
+ *       404:
+ *         description: No hay versiones de APK disponibles o no hay pantallas online
+ */
+router.post('/broadcast/send-update', isSuperAdmin, sendUpdateCommandToAll);
+
+/**
+ * @swagger
  * /api/screens/{id}/send-update:
  *   post:
  *     summary: Enviar comando de actualización APK a una pantalla (Super Admin)
@@ -445,45 +485,5 @@ router.post('/:id/command', sendCommand);
  *         description: Pantalla no encontrada o no hay versiones de APK disponibles
  */
 router.post('/:id/send-update', isSuperAdmin, sendUpdateCommand);
-
-/**
- * @swagger
- * /api/screens/broadcast/send-update:
- *   post:
- *     summary: Enviar comando de actualización APK a todas las pantallas online (Super Admin)
- *     description: |
- *       Envía comando MQTT de actualización a todas las pantallas que estén online.
- *       Solo super admin puede ejecutar este comando.
- *     tags: [Screens]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Comando de actualización enviado a todas las pantallas
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 sent_to:
- *                   type: integer
- *                   description: Número de pantallas a las que se envió el comando
- *                 version:
- *                   type: object
- *                   properties:
- *                     version_code:
- *                       type: integer
- *                     version_name:
- *                       type: string
- *       403:
- *         description: No tienes permiso (solo super admin)
- *       404:
- *         description: No hay versiones de APK disponibles o no hay pantallas online
- */
-router.post('/broadcast/send-update', isSuperAdmin, sendUpdateCommandToAll);
 
 module.exports = router;
