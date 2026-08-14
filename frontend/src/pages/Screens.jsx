@@ -13,6 +13,7 @@ import MagneticFAB from '../components/shared/MagneticFAB';
 import ScreenCard from '../components/shared/ScreenCard';
 import ScreenModal from '../components/shared/ScreenModal';
 import DeleteModal from '../components/shared/DeleteModal';
+import ConfirmModal from '../components/shared/ConfirmModal';
 import Btn from '../components/shared/Btn';
 import { useTheme } from '../context/ThemeContext';
 import usePermissions from '../hooks/usePermissions';
@@ -32,6 +33,7 @@ export default function Screens() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [sendingGlobalUpdate, setSendingGlobalUpdate] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
   const [selectedCompanyForCreate, setSelectedCompanyForCreate] = useState('');
   const [form, setForm] = useState({ name: '', device_id: '', venue_id: '', orientation: 'landscape' });
   const [thumbnails, setThumbnails] = useState({}); // { [screenId]: { url, mime_type } }
@@ -239,12 +241,12 @@ export default function Screens() {
       return;
     }
 
-    // Confirmación antes de enviar
-    const confirmMessage = `¿Enviar actualización APK a ${onlineCount} pantalla${onlineCount !== 1 ? 's' : ''} online?`;
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    // Mostrar modal de confirmación
+    setShowUpdateConfirm(true);
+  }
 
+  async function confirmGlobalApkUpdate() {
+    setShowUpdateConfirm(false);
     setSendingGlobalUpdate(true);
     try {
       const { data } = await api.post('/screens/broadcast/send-update');
@@ -415,6 +417,18 @@ export default function Screens() {
         onConfirm={handleDelete}
         itemName={deleteTarget?.name}
         loading={deleting}
+      />
+      <ConfirmModal
+        open={showUpdateConfirm}
+        onClose={() => setShowUpdateConfirm(false)}
+        onConfirm={confirmGlobalApkUpdate}
+        title="¿Actualizar APK en todas las pantallas?"
+        message={`Se enviará la actualización a ${screens.filter((s) => s.status === 'online').length} pantalla${screens.filter((s) => s.status === 'online').length !== 1 ? 's' : ''} online. Las pantallas con la última versión serán omitidas automáticamente.`}
+        icon={Download}
+        confirmText="Actualizar APK"
+        cancelText="Cancelar"
+        loading={sendingGlobalUpdate}
+        variant="primary"
       />
 
       <MagneticFAB onClick={openCreate} label="Nueva pantalla" icon={Monitor} color={T.blue} />
