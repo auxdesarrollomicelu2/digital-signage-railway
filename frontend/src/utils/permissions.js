@@ -1,7 +1,4 @@
-/**
- * SISTEMA DE PERMISOS
- * Define roles y permisos de forma escalable
- */
+// Sistema de permisos: define roles y permisos de forma escalable
 
 // Definición de roles
 export const ROLES = {
@@ -119,12 +116,7 @@ const ROLE_PERMISSIONS = {
   ],
 };
 
-/**
- * Verifica si un usuario tiene un permiso específico
- * @param {Object} user - Objeto de usuario con role
- * @param {string} permission - Permiso a verificar
- * @returns {boolean}
- */
+// Verifica si un usuario tiene un permiso específico
 export function hasPermission(user, permission) {
   if (!user || !user.role) return false;
   
@@ -132,65 +124,38 @@ export function hasPermission(user, permission) {
   return rolePermissions.includes(permission);
 }
 
-/**
- * Verifica si un usuario tiene al menos uno de los permisos especificados
- * @param {Object} user - Objeto de usuario con role
- * @param {string[]} permissions - Array de permisos
- * @returns {boolean}
- */
+// Verifica si un usuario tiene al menos uno de los permisos especificados
 export function hasAnyPermission(user, permissions) {
   if (!user || !user.role) return false;
   
   return permissions.some(permission => hasPermission(user, permission));
 }
 
-/**
- * Verifica si un usuario tiene todos los permisos especificados
- * @param {Object} user - Objeto de usuario con role
- * @param {string[]} permissions - Array de permisos
- * @returns {boolean}
- */
+// Verifica si un usuario tiene todos los permisos especificados
 export function hasAllPermissions(user, permissions) {
   if (!user || !user.role) return false;
   
   return permissions.every(permission => hasPermission(user, permission));
 }
 
-/**
- * Verifica si un usuario tiene un rol específico
- * @param {Object} user - Objeto de usuario con role
- * @param {string} role - Rol a verificar
- * @returns {boolean}
- */
+// Verifica si un usuario tiene un rol específico
 export function hasRole(user, role) {
   if (!user || !user.role) return false;
   
   return user.role === role;
 }
 
-/**
- * Verifica si un usuario es super admin
- * @param {Object} user - Objeto de usuario con role
- * @returns {boolean}
- */
+// Verifica si un usuario es super admin
 export function isSuperAdmin(user) {
   return hasRole(user, ROLES.SUPER_ADMIN);
 }
 
-/**
- * Verifica si un usuario es owner
- * @param {Object} user - Objeto de usuario con role
- * @returns {boolean}
- */
+// Verifica si un usuario es owner
 export function isOwner(user) {
   return hasRole(user, ROLES.OWNER);
 }
 
-/**
- * Obtiene todos los permisos de un usuario
- * @param {Object} user - Objeto de usuario con role
- * @returns {string[]}
- */
+// Obtiene todos los permisos de un usuario
 export function getUserPermissions(user) {
   if (!user || !user.role) return [];
   

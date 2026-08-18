@@ -5,9 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import SelectDropdown from './SelectDropdown';
 import { FB } from '../../styles/tokens';
 
-/**
- * Barra de filtros global (botón "Filtros" → dropdown "agregar filtro por"
- */
+// Barra de filtros global (botón "Filtros" → dropdown "agregar filtro por")
 export default function FilterChipBar({ fields, values, onChange, resultCount, style }) {
   const { T } = useTheme();
   const [activeIds, setActiveIds] = useState(() => fields.filter((f) => hasValue(f, values[f.id])).map((f) => f.id));

@@ -4,7 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 import { FD } from '../../styles/tokens';
 
-/** Modal genérico — portado de SignageControlCenter_v3.jsx (Modal). */
+// Modal genérico reutilizable con overlay y animación de entrada
 export default function Modal({ open, onClose, title, subtitle, children, accent }) {
   const { T } = useTheme();
   const ac = accent || T.primary;

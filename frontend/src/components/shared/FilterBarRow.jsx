@@ -3,9 +3,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE } from '../../styles/tokens';
 
-/**
- * Envoltorio del filtro global (FilterChipBar + buscador) 
- */
+// Envoltorio del filtro global (FilterChipBar + buscador)
 export default function FilterBarRow({ children }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);

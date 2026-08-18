@@ -2,13 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel'];
 
-/**
- * Detecta inactividad global (15-20s, aleatorio para que no se sienta
- * mecánico) y devuelve `true` durante una breve ráfaga de pasadas de "sheen"
- * (varias barras diagonales seguidas) — pensado para insinuar que una card
- * tiene una imagen de fondo interactiva. Cualquier interacción cancela la
- * ráfaga en curso al instante y reprograma la siguiente espera de inactividad.
- */
+// Detecta inactividad global y devuelve `true` durante una breve ráfaga de "sheen" en las cards
 export default function useIdleSheen(sweepMs = 2700) {
   const [active, setActive] = useState(false);
   const idleTimerRef = useRef(null);

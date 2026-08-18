@@ -3,10 +3,7 @@ import Btn from './Btn';
 import Input from '../ui/Input';
 import { useTheme } from '../../context/ThemeContext';
 
-/**
- * Modal de Sede — mismo formulario para "Nueva sede" y "Editar sede",
- * portado al lenguaje visual de Modal/Btn/Input (mismo usado en ScreenModal).
- */
+// Modal de Sede — mismo formulario para "Nueva sede" y "Editar sede"
 export default function SedeModal({ open, onClose, onSubmit, form, setForm, isEdit }) {
   const { T } = useTheme();
 

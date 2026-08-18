@@ -16,10 +16,7 @@ function randRange(min, max) {
   return min + Math.random() * (max - min);
 }
 
-/**
- * Detalle decorativo de identidad — cuadrícula grande, pegada al borde
- * derecho/
- */
+// Detalle decorativo de identidad: cuadrícula grande pegada al borde derecho
 export default function CornerGrid() {
   const { T } = useTheme();
   const canvasRef = useRef(null);

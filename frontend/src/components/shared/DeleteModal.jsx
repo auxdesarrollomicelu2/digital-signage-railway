@@ -5,7 +5,7 @@ import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 import Btn from './Btn';
 import { FD } from '../../styles/tokens';
 
-/** Modal de confirmación de borrado — portado de SignageControlCenter_v3.jsx (DeleteModal). */
+// Modal de confirmación de borrado
 export default function DeleteModal({ open, onClose, onConfirm, itemName, loading = false }) {
   const { T } = useTheme();
   useLockBodyScroll(open);

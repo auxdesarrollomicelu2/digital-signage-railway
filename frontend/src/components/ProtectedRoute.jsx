@@ -2,31 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { hasPermission, hasRole, hasAnyPermission } from '../utils/permissions';
 
-/**
- * Componente para proteger rutas según autenticación, roles y permisos
- * 
- * Ejemplos de uso:
- * 
- * // Solo autenticación
- * <ProtectedRoute>
- *   <Dashboard />
- * </ProtectedRoute>
- * 
- * // Requiere rol específico
- * <ProtectedRoute requiredRole="super_admin">
- *   <Companies />
- * </ProtectedRoute>
- * 
- * // Requiere permiso específico
- * <ProtectedRoute requiredPermission="companies.view">
- *   <Companies />
- * </ProtectedRoute>
- * 
- * // Requiere cualquiera de estos permisos
- * <ProtectedRoute requiredPermissions={['venues.view', 'screens.view']}>
- *   <Dashboard />
- * </ProtectedRoute>
- */
+// Componente para proteger rutas según autenticación, roles y permisos
 export default function ProtectedRoute({ 
   children, 
   requiredRole, 
@@ -61,9 +37,7 @@ export default function ProtectedRoute({
   return children;
 }
 
-/**
- * Componente para mostrar mensaje de acceso denegado
- */
+// Componente para mostrar mensaje de acceso denegado
 function AccessDenied({ message, fallbackPath }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">

@@ -25,7 +25,7 @@ function FieldGrid({ children }) {
   return <div style={{ display: 'grid', gap: '18px 16px' }} className="company-form-grid">{children}</div>;
 }
 
-/** Para pasos con pocos campos (Credenciales, Rol y estado) — centra el bloque en vez de estirarlo al ancho completo de la card. */
+// Centra el bloque en vez de estirarlo al ancho completo, para pasos con pocos campos
 function CenteredFieldGrid({ children }) {
   return (
     <div style={{ maxWidth: 460, margin: '0 auto' }}>
@@ -36,7 +36,7 @@ function CenteredFieldGrid({ children }) {
 
 const STEP_CIRCLE = 36;
 
-/** Indicador de pasos — círculos conectados por una línea que se rellena con el progreso real. */
+// Indicador de pasos: círculos conectados por una línea que se rellena con el progreso real
 function Stepper({ steps, current, maxReached, onJump, T }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', padding: '2px 2px 0' }}>

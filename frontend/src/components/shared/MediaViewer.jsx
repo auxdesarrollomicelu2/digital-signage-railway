@@ -10,10 +10,7 @@ function isVideoMime(mime) {
   return String(mime || '').toLowerCase().startsWith('video/');
 }
 
-/**
- * Visor tipo lightbox — permite recorrer todos los archivos con ← → o
- * los botones anterior/siguiente sin cerrar el visor. Reproduce video inline.
- */
+// Visor tipo lightbox que permite recorrer archivos con ← → y reproduce video inline
 export default function MediaViewer({ items, index, onClose, onNavigate }) {
   const { T } = useTheme();
   const open = index != null && index >= 0;

@@ -1,10 +1,7 @@
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { T_DARK, FD } from '../../styles/tokens';
 
-/**
- * Toast personalizado que sigue el sistema de diseño del dashboard
- * Coherente con VenueCard y el resto de componentes
- */
+// Toast personalizado que sigue el sistema de diseño del dashboard
 export default function CustomToast({ t, message, type = 'success' }) {
   const config = {
     success: {

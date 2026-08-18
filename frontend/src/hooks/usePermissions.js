@@ -11,26 +11,7 @@ import {
   PERMISSIONS,
 } from '../utils/permissions';
 
-/**
- * Hook personalizado para manejar permisos
- * Facilita el uso del sistema de permisos en componentes
- * 
- * Ejemplo de uso:
- * 
- * function MyComponent() {
- *   const { can, canAny, canAll, is, isSuperAdmin } = usePermissions();
- *   
- *   if (isSuperAdmin) {
- *     return <AdminPanel />;
- *   }
- *   
- *   if (can('venues.create')) {
- *     return <CreateVenueButton />;
- *   }
- *   
- *   return <ReadOnlyView />;
- * }
- */
+// Hook para consultar permisos y roles del usuario actual en componentes
 export default function usePermissions() {
   const { user } = useAuth();
 

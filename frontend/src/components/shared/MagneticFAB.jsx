@@ -4,10 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import useAnyModalOpen from '../../hooks/useAnyModalOpen';
 import { FB } from '../../styles/tokens';
 
-/**
- * Botón flotante magnético — portado de SignageControlCenter_v3.jsx (MagneticFAB).
- * Fijo abajo a la derecha, se acerca al cursor cuando está cerca.
- */
+// Botón flotante magnético fijo abajo a la derecha, se acerca al cursor cuando está cerca.
 export default function MagneticFAB({ onClick, label, icon: Icon, color }) {
   const { T } = useTheme();
   const fabRef = useRef(null);
@@ -25,8 +22,10 @@ export default function MagneticFAB({ onClick, label, icon: Icon, color }) {
       const fab = fabRef.current;
       if (!fab) { rafRef.current = requestAnimationFrame(animate); return; }
       const rect = fab.getBoundingClientRect();
-      const fabCX = rect.left + rect.width / 2;
-      const fabCY = rect.top + rect.height / 2;
+      // El rect ya incluye el transform del frame anterior — hay que restarlo
+      // para obtener el centro real, o el bucle se retroalimenta y vibra.
+      const fabCX = rect.left + rect.width / 2 - offsetRef.current.x;
+      const fabCY = rect.top + rect.height / 2 - offsetRef.current.y;
       const dx = mouseRef.current.x - fabCX;
       const dy = mouseRef.current.y - fabCY;
       const dist = Math.sqrt(dx * dx + dy * dy);

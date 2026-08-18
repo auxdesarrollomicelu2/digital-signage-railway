@@ -5,12 +5,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { FB, EASE } from '../../styles/tokens';
 
-/**
- * Select estilizado — el menú se porta a document.body (como Modal/DeleteModal)
- * y se posiciona con coordenadas fijas calculadas desde el trigger, para que
- * ningún contenedor con overflow/scroll (p. ej. el <main> del layout) lo
- * recorte ni le agregue una barra de scroll propia.
- */
+// Select estilizado que se porta a document.body y se posiciona con coordenadas fijas desde el trigger, para no quedar recortado por contenedores con overflow.
 export default function SelectDropdown({ value, onChange, options, placeholder = 'Seleccionar…', triggerStyle, minWidth = 150, fullWidth = false, visibleLimit = 6 }) {
   const { T } = useTheme();
   const [open, setOpen] = useState(false);

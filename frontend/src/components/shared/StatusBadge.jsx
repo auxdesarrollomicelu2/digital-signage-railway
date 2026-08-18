@@ -6,7 +6,7 @@ const STATUS_META = {
   offline: { label: 'Fuera de línea', tone: 'red' },
 };
 
-/** Portado de SignageControlCenter_v3.jsx (StatusBadge). */
+// Insignia visual del estado de una pantalla (online/offline)
 export default function StatusBadge({ status }) {
   const { T } = useTheme();
   const m = STATUS_META[status] || STATUS_META.offline;

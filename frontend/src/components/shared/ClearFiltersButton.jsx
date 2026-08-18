@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { FB } from '../../styles/tokens';
 
-/** Portado de SignageControlCenter_v3.jsx (ClearFiltersButton). */
+// Botón para limpiar todos los filtros activos
 export default function ClearFiltersButton({ onClick, style }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);

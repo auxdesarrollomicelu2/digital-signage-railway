@@ -35,7 +35,7 @@ function InfoRow({ icon: Icon, label, value, T }) {
   );
 }
 
-/** Panel lateral (drawer) con la vista previa e información de un archivo — no un modal. */
+// Panel lateral (drawer) con la vista previa e información de un archivo
 export default function MediaDrawer({ item, onClose, onRename, onDelete, onOpenViewer }) {
   const { T } = useTheme();
   const [editing, setEditing] = useState(false);

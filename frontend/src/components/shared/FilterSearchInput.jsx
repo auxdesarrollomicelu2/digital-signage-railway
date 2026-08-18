@@ -4,9 +4,7 @@ import { Search, X } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { FB } from '../../styles/tokens';
 
-/**
- * Buscador de la barra de filtros
- */
+// Buscador de la barra de filtros
 export default function FilterSearchInput({ value, onChange, placeholder, style }) {
   const { T } = useTheme();
   const [focus, setFocus] = useState(false);

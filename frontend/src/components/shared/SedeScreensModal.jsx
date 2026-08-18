@@ -10,9 +10,7 @@ import Btn from './Btn';
 import timeAgo from '../../utils/timeAgo';
 import { FD, FM } from '../../styles/tokens';
 
-/**
- * Modal con el listado de pantallas de una sede
- */
+// Modal con el listado de pantallas de una sede
 export default function SedeScreensModal({ sede, onClose }) {
   const { T } = useTheme();
   const navigate = useNavigate();

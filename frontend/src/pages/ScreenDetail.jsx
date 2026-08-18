@@ -28,7 +28,7 @@ function playlistQueueSubtitle(length) {
   return `${length} elementos en cola`;
 }
 
-/** Con alias explícito `as: 'ScreenMedia'`, Sequelize devuelve exactamente esa clave. */
+// Con alias explícito `as: 'ScreenMedia'`, Sequelize devuelve exactamente esa clave
 function getScreenMediaRows(data) {
   if (!data || typeof data !== 'object') return [];
   const rows = data.ScreenMedia ?? data.ScreenMedias ?? data.screenMedia ?? data.screenMedias;
@@ -53,7 +53,7 @@ export default function ScreenDetail() {
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [copied, setCopied] = useState(false);
-  /** Evita que el polling borre la playlist antes de guardar */
+  // Evita que el polling borre la playlist antes de guardar
   const playlistDirtyRef = useRef(false);
   const pickerFileInputRef = useRef(null);
 

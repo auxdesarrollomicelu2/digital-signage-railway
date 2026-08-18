@@ -431,7 +431,7 @@ export default function Screens() {
         variant="primary"
       />
 
-      <MagneticFAB onClick={openCreate} label="Nueva pantalla" icon={Monitor} color={T.blue} />
+      <MagneticFAB onClick={openCreate} label="Nueva pantalla" icon={Monitor} color={T.primary} />
     </div>
   );
 }

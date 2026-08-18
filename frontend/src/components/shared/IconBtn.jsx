@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 
-/** Portado de SignageControlCenter_v3.jsx (IconBtn). */
+// Botón cuadrado pequeño con icono
 export default function IconBtn({ icon: Icon, onClick, label, color, size = 28, iconSize = 13 }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);

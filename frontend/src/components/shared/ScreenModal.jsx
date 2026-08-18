@@ -4,9 +4,7 @@ import Input from '../ui/Input';
 import FormSelect from './FormSelect';
 import { useTheme } from '../../context/ThemeContext';
 
-/**
- * Modal de crear/editar pantalla
- */
+// Modal de crear/editar pantalla
 export default function ScreenModal({ 
   open, 
   onClose, 
@@ -29,7 +27,7 @@ export default function ScreenModal({
       onClose={onClose}
       title={isEdit ? 'Editar pantalla' : 'Nueva pantalla'}
       subtitle={isEdit ? 'El Device ID no se puede cambiar' : 'Registra un nuevo dispositivo'}
-      accent={T.blue}
+      accent={T.primary}
     >
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {isSuperAdmin && !isEdit && (
@@ -78,7 +76,7 @@ export default function ScreenModal({
         />
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <Btn variant="secondary" onClick={onClose} type="button" style={{ flex: 1, padding: '11px' }}>Cancelar</Btn>
-          <Btn variant="primary" accentColor={T.blue} type="submit" style={{ flex: 1, padding: '11px' }}>
+          <Btn variant="primary" accentColor={T.primary} type="submit" style={{ flex: 1, padding: '11px' }}>
             {isEdit ? 'Guardar cambios' : 'Registrar pantalla'}
           </Btn>
         </div>

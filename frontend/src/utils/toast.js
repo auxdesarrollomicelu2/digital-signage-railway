@@ -1,10 +1,7 @@
 import toast from 'react-hot-toast';
 
 
-/**
- * 
- * @param {string} message - Mensaje a mostrar
- */
+// Muestra un toast de éxito
 export const toastWarning = (message) => {
   return toast(message, {
     icon: '⚠️',
@@ -15,10 +12,7 @@ export const toastWarning = (message) => {
   });
 };
 
-/**
- * Toast informativo (azul)
- * @param {string} message - Mensaje a mostrar
- */
+// Muestra un toast informativo (azul)
 export const toastInfo = (message) => {
   return toast(message, {
     icon: 'ℹ️',

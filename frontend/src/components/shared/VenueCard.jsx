@@ -7,9 +7,7 @@ import { FD } from '../../styles/tokens';
 
 const NEON = '#22e5e5';
 
-/**
- * Tarjeta de sede
- */
+// Tarjeta de sede
 export default function VenueCard({ venue: v, empresaName, onViewScreens, onEdit, onDelete, onCoverUploaded, delay = 0 }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);

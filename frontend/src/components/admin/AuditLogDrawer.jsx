@@ -94,12 +94,7 @@ function InfoField({ label, value, T, span }) {
   );
 }
 
-/**
- * Panel lateral con el detalle de un log de auditoría — abre de derecha a
- * izquierda (no modal centrado), muestra los valores anteriores/nuevos ya
- * formateados, y permite recorrer los registros cargados con ← → o los
- * botones sin tener que cerrar el panel.
- */
+// Panel lateral con el detalle de un log de auditoría, navegable con ← → sin cerrar el panel
 export default function AuditLogDrawer({ logs, index, onClose, onNavigate, formatDate, resourceLabel }) {
   const { T } = useTheme();
   const open = index != null && index >= 0 && index < logs.length;

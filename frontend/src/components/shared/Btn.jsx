@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { FB } from '../../styles/tokens';
 
-/** Botón con ripple + glass-swipe — portado de SignageControlCenter_v3.jsx (Btn). */
+// Botón con efecto ripple + glass-swipe
 export default function Btn({ children, onClick, variant = 'ghost', size = 'md', style, disabled, loading, accentColor, ...rest }) {
   const { T } = useTheme();
   const [ripples, setRipples] = useState([]);

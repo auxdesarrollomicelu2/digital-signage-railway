@@ -40,12 +40,7 @@ function ActionDot({ icon: Icon, label, onClick, color, T }) {
   );
 }
 
-/**
- * Tarjeta de empresa — identidad y estado de un vistazo. La foto de fondo
- * (única imagen editable de la card) vive oculta bajo un overlay oscuro en
- * reposo y se revela con fade + zoom leve al hacer hover, para mantener la
- * estética oscura del dashboard sin perder la fotografía como detalle premium.
- */
+// Tarjeta de empresa: identidad y estado de un vistazo, con foto de fondo revelada al hacer hover
 export default function CompanyCard({ company, onView, onEdit, onToggleActive, onDelete, onUploadCover, onRemoveCover, delay = 0, sheenActive = false }) {
   const { T } = useTheme();
   const [hov, setHov] = useState(false);
