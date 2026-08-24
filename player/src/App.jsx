@@ -49,7 +49,7 @@ const MQTT_URL = MQTT_PORT
   : `${wsProtocol}//${MQTT_HOST}${MQTT_PATH}`;
 const PLAYLIST_API_URL = `${API_URL}/api/screens/by-device/${encodeURIComponent(DEVICE_ID)}/playlist`;
 const PLAYLIST_STORAGE_KEY = `signage:playlist:${DEVICE_ID}`;
-const MEDIA_CACHE_NAME = 'signage-media-v1';
+const MEDIA_CACHE_NAME = 'signage-media-v2';
 const SYNC_INTERVAL_MS = 30000;
 
 export default function App() {
@@ -192,7 +192,26 @@ export default function App() {
   // ─── Descarga toda la playlist y luego la activa ──────────────────────────
 
   const downloadAndActivate = useCallback(async (items, source) => {
-    if (!Array.isArray(items) || items.length === 0) return;
+    if (!Array.isArray(items)) return;
+    
+    if (items.length === 0) {
+      console.log(`[Player] Playlist vacía recibida desde ${source} - limpiando contenido`);
+      
+      for (const [url, blobUrl] of mediaBlobMapRef.current) {
+        if (String(blobUrl).startsWith('blob:')) {
+          URL.revokeObjectURL(blobUrl);
+        }
+      }
+      
+      mediaBlobMapRef.current = new Map();
+      persistPlaylist([]);
+      setActivePlaylist([]);
+      setCurrentIndex(0);
+      setDownloadProgress(null);
+      
+      console.log(`[Player] Contenido limpiado - mostrando pantalla de espera`);
+      return;
+    }
 
     console.log(`[Player] Descargando playlist (${source}): ${items.length} ítems`);
     setDownloadProgress({ done: 0, total: items.length });
@@ -299,14 +318,18 @@ export default function App() {
       client.subscribe(`signage/${DEVICE_ID}/command`, { qos: 1 });
       syncPlaylistFromApi();
       
-      // Obtener versión APK de Android si está disponible
       const apkVersion = globalThis.AndroidInterface?.getApkVersion?.() || 1;
+      const screenWidth = Math.round(window.screen.width * (window.devicePixelRatio || 1));
+      const screenHeight = Math.round(window.screen.height * (window.devicePixelRatio || 1));
+      
       client.publish(
         `signage/${DEVICE_ID}/heartbeat`, 
         JSON.stringify({ 
           timestamp: Date.now(), 
           status: 'connected',
-          apk_version: apkVersion
+          apk_version: apkVersion,
+          screen_width: screenWidth,
+          screen_height: screenHeight
         })
       );
     });
@@ -314,7 +337,16 @@ export default function App() {
     client.on('message', (topic, message) => {
       try {
         const data = JSON.parse(message.toString());
-        if (topic.endsWith('/playlist') && Array.isArray(data?.items)) applyPlaylist(data.items, 'mqtt');
+        
+        if (topic.endsWith('/playlist') && Array.isArray(data?.items)) {
+          applyPlaylist(data.items, 'mqtt');
+        }
+        
+        if (topic.endsWith('/command') && data.type === 'refresh') {
+          playlistSigRef.current = '';
+          syncPlaylistFromApi();
+        }
+
         if (topic.endsWith('/command') && data.type === 'reload') globalThis.location.reload();
         
         // Handler para actualización de APK (solo Android)
@@ -336,14 +368,18 @@ export default function App() {
 
     heartbeatRef.current = setInterval(() => {
       if (client.connected) {
-        // Obtener versión APK de Android si está disponible
         const apkVersion = globalThis.AndroidInterface?.getApkVersion?.() || 1;
+        const screenWidth = Math.round(window.screen.width * (window.devicePixelRatio || 1));
+        const screenHeight = Math.round(window.screen.height * (window.devicePixelRatio || 1));
+        
         client.publish(
           `signage/${DEVICE_ID}/heartbeat`, 
           JSON.stringify({ 
             timestamp: Date.now(), 
             status: 'playing',
-            apk_version: apkVersion
+            apk_version: apkVersion,
+            screen_width: screenWidth,
+            screen_height: screenHeight
           })
         );
       }
@@ -460,20 +496,69 @@ export default function App() {
   if (activePlaylist.length === 0) {
     return (
       <div style={styles.waiting}>
+        <div style={styles.sweepEffect} />
+        <div style={styles.gridPattern} />
         <div style={styles.waitingContent}>
-          <div style={styles.logo}>📺</div>
-          <h1 style={styles.title}>Digital Signage Micelu</h1>
-          <p style={styles.deviceId}>{DEVICE_ID}</p>
-          <div style={styles.statusRow}>
-            <span style={{ ...styles.statusDot, backgroundColor: connected ? '#22c55e' : '#ef4444' }} />
-            <span style={styles.statusText}>
-              {(() => {
-                if (downloadProgress) return `Descargando contenido... ${downloadProgress.done}/${downloadProgress.total}`;
-                if (connected) return 'Conectado — esperando contenido...';
-                return 'Conectando al servidor...';
-              })()}
-            </span>
+          {/* Anillos concéntricos animados */}
+          <div style={styles.pulseContainer}>
+            <div style={{ 
+              ...styles.pulseRing, 
+              backgroundColor: connected ? '#22e6ac' : '#e2554f',
+              animationDelay: '0s' 
+            }} />
+            <div style={{ 
+              ...styles.pulseRing, 
+              backgroundColor: connected ? '#22e6ac' : '#e2554f',
+              animationDelay: '0.4s' 
+            }} />
+            <div style={{ 
+              ...styles.pulseRing, 
+              backgroundColor: connected ? '#22e6ac' : '#e2554f',
+              animationDelay: '0.8s' 
+            }} />
+            <div style={{
+              ...styles.pulseDot,
+              backgroundColor: connected ? '#22e6ac' : '#e2554f'
+            }} />
           </div>
+
+          {/* Título y subtítulo */}
+          <h1 style={styles.title}>Digital Signage Versat</h1>
+          <p style={styles.subtitle}>
+            {(() => {
+              if (downloadProgress) return 'Descargando contenido...';
+              if (connected) return 'En cuanto se asigne una lista de reproducción, empezará a mostrarse aquí';
+              return 'Estableciendo conexión con el servidor...';
+            })()}
+          </p>
+
+          {/* Metadata row */}
+          <div style={styles.metadataRow}>
+            <span style={{ 
+              ...styles.statusDot, 
+              backgroundColor: connected ? '#22e6ac' : '#e2554f' 
+            }} />
+            <span style={styles.metadataText}>
+              {connected ? 'Conectado' : 'Conectando'}
+            </span>
+            <span style={styles.metadataSeparator}>·</span>
+            <span style={styles.metadataText}>{DEVICE_ID}</span>
+          </div>
+
+          {/* Barra de progreso cuando descarga */}
+          {downloadProgress && (
+            <div style={styles.progressContainer}>
+              <div style={styles.progressBar}>
+                <div style={{
+                  ...styles.progressFill,
+                  width: `${(downloadProgress.done / downloadProgress.total) * 100}%`
+                }} />
+              </div>
+              <span style={styles.progressText}>
+                {downloadProgress.done} / {downloadProgress.total}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -564,47 +649,132 @@ const styles = {
   waiting: {
     width: '100vw',
     height: '100vh',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+    background: '#06090a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    isolation: 'isolate',
+  },
+  gridPattern: {
+    position: 'absolute',
+    inset: 0,
+    backgroundImage: `
+      linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)
+    `,
+    backgroundSize: '50px 50px',
+    pointerEvents: 'none',
+  },
+  sweepEffect: {
+    content: '""',
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 0,
+    padding: '1px',
+    pointerEvents: 'none',
+    zIndex: 1,
+    background: 'conic-gradient(from var(--sweep-angle, 0deg), transparent 0%, transparent 80%, rgba(34, 230, 172, 0.15) 88%, rgba(34, 230, 172, 0.25) 91%, rgba(34, 230, 172, 0.15) 94%, transparent 100%)',
+    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+    WebkitMaskComposite: 'xor',
+    maskComposite: 'exclude',
+    opacity: 0.5,
+    animation: 'sweepSpin 8s linear infinite',
   },
   waitingContent: {
     textAlign: 'center',
-    color: '#fff',
+    color: '#f2f6f5',
+    position: 'relative',
+    zIndex: 1,
   },
-  logo: {
-    fontSize: '80px',
-    marginBottom: '20px',
-  },
-  title: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-    fontFamily: 'system-ui, sans-serif',
-  },
-  deviceId: {
-    fontSize: '18px',
-    color: '#818cf8',
-    fontFamily: 'monospace',
-    marginBottom: '24px',
-  },
-  statusRow: {
+  pulseContainer: {
+    position: 'relative',
+    width: '280px',
+    height: '280px',
+    margin: '0 auto 48px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
-    marginBottom: '16px',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    opacity: 0.2,
+    animation: 'pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+  },
+  pulseDot: {
+    position: 'relative',
+    zIndex: 2,
+    width: '60px',
+    height: '60px',
+    borderRadius: '50%',
+    filter: 'drop-shadow(0 0 24px currentColor)',
+  },
+  title: {
+    fontSize: '48px',
+    fontWeight: '800',
+    marginBottom: '20px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    letterSpacing: '-0.02em',
+    color: '#f2f6f5',
+  },
+  subtitle: {
+    fontSize: '16px',
+    color: '#7c8f8d',
+    fontFamily: 'system-ui, sans-serif',
+    marginBottom: '40px',
+    maxWidth: '480px',
+    margin: '0 auto 40px',
+    lineHeight: '1.6',
+  },
+  metadataRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    color: '#7c8f8d',
+    marginBottom: '24px',
+  },
+  metadataText: {
+    color: '#7c8f8d',
+  },
+  metadataSeparator: {
+    color: '#2a3335',
+    fontSize: '16px',
   },
   statusDot: {
-    width: '10px',
-    height: '10px',
+    width: '8px',
+    height: '8px',
     borderRadius: '50%',
+    boxShadow: '0 0 8px currentColor',
   },
-  statusText: {
-    fontSize: '14px',
-    color: '#94a3b8',
-    fontFamily: 'system-ui, sans-serif',
+  progressContainer: {
+    width: '320px',
+    margin: '0 auto',
+  },
+  progressBar: {
+    width: '100%',
+    height: '3px',
+    background: 'rgba(255,255,255,0.08)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+    marginBottom: '8px',
+  },
+  progressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #22e6ac 0%, #1bc494 100%)',
+    transition: 'width 0.3s ease',
+    boxShadow: '0 0 8px #22e6ac',
+  },
+  progressText: {
+    fontSize: '12px',
+    fontFamily: 'monospace',
+    color: '#7c8f8d',
   },
   player: {
     width: '100vw',

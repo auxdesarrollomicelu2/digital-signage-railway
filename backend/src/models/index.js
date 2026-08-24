@@ -6,6 +6,7 @@ const ScreenMedia = require('./ScreenMedia');
 const AuditLog    = require('./AuditLog');
 const ScreenLog   = require('./ScreenLog');
 const ApkVersion  = require('./ApkVersion');
+const MediaRender = require('./MediaRender');
 
 // Company → Venues
 Company.hasMany(Venue, { foreignKey: 'company_id', as: 'Venues', onDelete: 'CASCADE' });
@@ -34,4 +35,8 @@ ScreenMedia.belongsTo(Screen, { foreignKey: 'screen_id' });
 Media.hasMany(ScreenMedia, { foreignKey: 'media_id', onDelete: 'CASCADE' });
 ScreenMedia.belongsTo(Media, { foreignKey: 'media_id', as: 'Media' });
 
-module.exports = { Company, Venue, Screen, Media, ScreenMedia, AuditLog, ScreenLog, ApkVersion };
+// Media → MediaRenders (caché de optimizaciones)
+Media.hasMany(MediaRender, { foreignKey: 'media_id', as: 'Renders', onDelete: 'CASCADE' });
+MediaRender.belongsTo(Media, { foreignKey: 'media_id', as: 'Media' });
+
+module.exports = { Company, Venue, Screen, Media, ScreenMedia, AuditLog, ScreenLog, ApkVersion, MediaRender };

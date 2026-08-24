@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 const { Media, Company, ScreenMedia } = require('../models');
 const { Op } = require('sequelize');
 const { uploadToR2, deleteFromR2, getPublicUrl, isR2Configured } = require('./cloudflare');
@@ -113,6 +114,104 @@ const uploadMediaFiles = async (files, uploadData, userPermissions) => {
 
   for (const file of files) {
     try {
+      if (file.mimetype && file.mimetype.startsWith('image/')) {
+        const filePath = path.join(uploadDir, file.filename);
+        const metadata = await sharp(filePath).metadata();
+        
+        if (!metadata.width || !metadata.height) {
+          fs.unlinkSync(filePath);
+          uploadErrors.push({
+            filename: file.originalname,
+            error: 'Imagen corrupta o formato no válido',
+          });
+          continue;
+        }
+        
+        const minDimension = 1080;
+        const maxDimension = 1920;
+        const smallerSide = Math.min(metadata.width, metadata.height);
+        const largerSide = Math.max(metadata.width, metadata.height);
+        
+        if (smallerSide < minDimension || largerSide < maxDimension) {
+          fs.unlinkSync(filePath);
+          uploadErrors.push({
+            filename: file.originalname,
+            error: `Imagen muy pequeña: ${metadata.width}x${metadata.height}. Mínimo requerido: ${maxDimension}x${minDimension} para pantallas digitales`,
+          });
+          continue;
+        }
+      }
+
+      if (file.mimetype && file.mimetype.startsWith('video/')) {
+        const maxVideoSizeMB = 100;
+        const maxVideoSizeBytes = maxVideoSizeMB * 1024 * 1024;
+        
+        if (file.size > maxVideoSizeBytes) {
+          fs.unlinkSync(path.join(uploadDir, file.filename));
+          uploadErrors.push({
+            filename: file.originalname,
+            error: `Video muy grande: ${(file.size / 1024 / 1024).toFixed(2)} MB (máximo ${maxVideoSizeMB} MB)`,
+          });
+          continue;
+        }
+
+        const { detectVideoMetadata } = require('./video-render.service');
+        const filePath = path.join(uploadDir, file.filename);
+        const buffer = fs.readFileSync(filePath);
+        
+        try {
+          const metadata = await detectVideoMetadata(buffer);
+          
+          const maxDuration = 120;
+          if (metadata.duration > maxDuration) {
+            fs.unlinkSync(filePath);
+            uploadErrors.push({
+              filename: file.originalname,
+              error: `Video muy largo: ${metadata.duration.toFixed(1)}s (máximo ${maxDuration}s = 2 minutos)`,
+            });
+            continue;
+          }
+
+          const minDimension = 720;
+          const maxDimension = 1280;
+          const smallerSide = Math.min(metadata.width, metadata.height);
+          const largerSide = Math.max(metadata.width, metadata.height);
+          
+          if (smallerSide < minDimension || largerSide < maxDimension) {
+            fs.unlinkSync(filePath);
+            uploadErrors.push({
+              filename: file.originalname,
+              error: `Video muy pequeño: ${metadata.width}x${metadata.height}. Mínimo requerido: ${maxDimension}x${minDimension} para pantallas digitales`,
+            });
+            continue;
+          }
+
+          if (!metadata.codec || metadata.codec === 'unknown') {
+            fs.unlinkSync(filePath);
+            uploadErrors.push({
+              filename: file.originalname,
+              error: 'Video corrupto o formato no soportado. No se pudo detectar el codec de video.',
+            });
+            continue;
+          }
+
+          const supportedCodecs = ['h264', 'hevc', 'h265', 'vp8', 'vp9', 'mpeg4', 'prores'];
+          if (!supportedCodecs.includes(metadata.codec.toLowerCase())) {
+            uploadErrors.push({
+              filename: file.originalname,
+              warning: `Codec de video no común: ${metadata.codec}. Puede haber problemas de compatibilidad.`,
+            });
+          }
+        } catch (metadataError) {
+          fs.unlinkSync(filePath);
+          uploadErrors.push({
+            filename: file.originalname,
+            error: `Error validando video: ${metadataError.message}`,
+          });
+          continue;
+        }
+      }
+
       let cloudflareKey = null;
       let publicUrl = `/uploads/${file.filename}`;
 
@@ -130,6 +229,28 @@ const uploadMediaFiles = async (files, uploadData, userPermissions) => {
         }
       }
 
+      let videoMetadata = null;
+      if (file.mimetype && file.mimetype.startsWith('video/')) {
+        try {
+          const { detectVideoMetadata } = require('./video-render.service');
+          const filePath = path.join(uploadDir, file.filename);
+          const buffer = fs.readFileSync(filePath);
+          videoMetadata = await detectVideoMetadata(buffer);
+        } catch (err) {
+          console.warn(`⚠️ No se pudo detectar metadata de video: ${file.originalname}`);
+        }
+      }
+
+      let imageMetadata = null;
+      if (file.mimetype && file.mimetype.startsWith('image/')) {
+        try {
+          const filePath = path.join(uploadDir, file.filename);
+          imageMetadata = await sharp(filePath).metadata();
+        } catch (err) {
+          console.warn(`⚠️ No se pudo detectar metadata de imagen: ${file.originalname}`);
+        }
+      }
+
       const media = await Media.create({
         filename: file.filename,
         original_name: file.originalname,
@@ -137,6 +258,9 @@ const uploadMediaFiles = async (files, uploadData, userPermissions) => {
         cloudflare_key: cloudflareKey,
         mime_type: file.mimetype,
         size: file.size,
+        width: videoMetadata?.width || imageMetadata?.width || null,
+        height: videoMetadata?.height || imageMetadata?.height || null,
+        duration: videoMetadata?.duration || null,
         company_id: finalCompanyId,
       });
 
@@ -195,6 +319,7 @@ const deleteMediaFile = async (mediaId, userPermissions) => {
   const deletionLog = {
     cloudflare: false,
     local: false,
+    renders: { deleted: 0, failed: 0 }
   };
 
   if (media.cloudflare_key) {
@@ -206,6 +331,30 @@ const deleteMediaFile = async (mediaId, userPermissions) => {
       console.warn(`⚠️ [R2] No se pudo eliminar: ${media.cloudflare_key}`);
     }
   }
+
+  const { MediaRender } = require('../models');
+  const renders = await MediaRender.findAll({
+    where: { media_id: mediaId }
+  });
+
+  for (const render of renders) {
+    if (render.cloudflare_key) {
+      const renderDeleted = await deleteFromR2(render.cloudflare_key);
+      if (renderDeleted) {
+        deletionLog.renders.deleted++;
+        console.log(`✅ [R2] Render eliminado: ${render.cloudflare_key}`);
+      } else {
+        deletionLog.renders.failed++;
+        console.warn(`⚠️ [R2] No se pudo eliminar render: ${render.cloudflare_key}`);
+      }
+    }
+  }
+
+  await MediaRender.destroy({
+    where: { media_id: mediaId }
+  });
+
+  console.log(`✅ [DB] ${renders.length} render(s) eliminados de base de datos`);
 
   const filePath = path.join(uploadDir, media.filename);
   if (fs.existsSync(filePath)) {

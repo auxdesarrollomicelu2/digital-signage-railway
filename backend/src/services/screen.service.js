@@ -1,6 +1,7 @@
 const { Screen, Venue, Media, ScreenMedia, Company } = require('../models');
 const { Op } = require('sequelize');
 const { validateScreenData, normalizeScreenData } = require('../utils/validation');
+const { normalizeResolution } = require('../utils/resolution');
 
 async function generateDeviceIdForCompany(companyId) {
   const screens = await Screen.findAll({
@@ -86,17 +87,39 @@ const getPlaylistByDeviceId = async (deviceId) => {
     order: [['position', 'ASC']],
   });
 
-  const playlistData = rows
-    .filter((r) => r.Media != null)
-    .map((r) => ({
-      id: r.Media.id,
-      url: normalizeMediaUrl(r.Media.url),
-      filename: r.Media.original_name,
-      mime_type: r.Media.mime_type,
-      size: r.Media.size,
-      duration: r.duration,
-      position: r.position,
-    }));
+  const { MediaRender } = require('../models');
+  const normalized = normalizeResolution(screen.width || 1920, screen.height || 1080);
+  const playlistData = [];
+
+  for (const row of rows) {
+    if (!row.Media) continue;
+
+    let url = normalizeMediaUrl(row.Media.url);
+    if (row.Media.mime_type?.startsWith('video/')) {
+      const render = await MediaRender.findOne({
+        where: {
+          media_id: row.Media.id,
+          width: normalized.width,
+          height: normalized.height,
+          rotation: row.rotation,
+          status: 'ready',
+        },
+      });
+
+      if (render?.url) url = render.url;
+    }
+
+    playlistData.push({
+      id: row.Media.id,
+      url,
+      filename: row.Media.original_name,
+      mime_type: row.Media.mime_type,
+      size: row.Media.size,
+      duration: row.duration,
+      position: row.position,
+      rotation: row.rotation,
+    });
+  }
 
   return playlistData;
 };
@@ -186,6 +209,7 @@ const getScreenById = async (screenId, userPermissions) => {
       {
         model: ScreenMedia,
         as: 'ScreenMedia',
+        attributes: ['id', 'screen_id', 'media_id', 'duration', 'position', 'rotation', 'createdAt', 'updatedAt'],
         include: [{ model: Media, as: 'Media' }],
         separate: true,
         order: [['position', 'ASC']],
@@ -433,6 +457,7 @@ const assignPlaylistToScreen = async (screenId, playlistItems, userPermissions) 
       media_id: Number(item.media_id),
       duration: Number(item.duration) || 10,
       position: item.position === undefined ? idx : Number(item.position),
+      rotation: Number(item.rotation) || 0,
     }))
     .filter((row) => row.media_id && !Number.isNaN(row.media_id));
 
@@ -459,17 +484,117 @@ const assignPlaylistToScreen = async (screenId, playlistItems, userPermissions) 
     order: [['position', 'ASC']],
   });
 
-  const playlistData = rows
-    .filter((r) => r.Media != null)
-    .map((r) => ({
-      id: r.Media.id,
-      url: normalizeMediaUrl(r.Media.url),
-      filename: r.Media.original_name,
-      mime_type: r.Media.mime_type,
-      size: r.Media.size,
-      duration: r.duration,
-      position: r.position,
-    }));
+  const { getOrCreateImageRender } = require('./image-render.service');
+  const { videoQueue } = require('../config/queue');
+  const { MediaRender } = require('../models');
+  const playlistData = [];
+
+  for (const row of rows) {
+    if (!row.Media) continue;
+
+    const baseItem = {
+      id: row.Media.id,
+      filename: row.Media.original_name,
+      original_name: row.Media.original_name,
+      mime_type: row.Media.mime_type,
+      size: row.Media.size,
+      duration: row.duration,
+      position: row.position,
+      rotation: row.rotation,
+    };
+
+    if (row.Media.mime_type && row.Media.mime_type.startsWith('image/')) {
+      try {
+        const normalized = normalizeResolution(screen.width || 1920, screen.height || 1080);
+        
+        const render = await getOrCreateImageRender(
+          row.Media.id,
+          normalized.width,
+          normalized.height,
+          row.rotation
+        );
+
+        if (render.status === 'ready') {
+          playlistData.push({
+            ...baseItem,
+            url: render.url,
+          });
+          console.log(`[Playlist] Usando render optimizado para media ${row.Media.id}`);
+        } else {
+          playlistData.push({
+            ...baseItem,
+            url: normalizeMediaUrl(row.Media.url),
+          });
+          console.warn(`[Playlist] Render fallo, usando master para media ${row.Media.id}`);
+        }
+      } catch (error) {
+        console.error(`[Playlist] Error obteniendo render para media ${row.Media.id}:`, error);
+        playlistData.push({
+          ...baseItem,
+          url: normalizeMediaUrl(row.Media.url),
+        });
+      }
+    } else if (row.Media.mime_type && row.Media.mime_type.startsWith('video/')) {
+      try {
+        const normalized = normalizeResolution(screen.width || 1920, screen.height || 1080);
+        
+        let render = await MediaRender.findOne({
+          where: { 
+            media_id: row.Media.id, 
+            width: normalized.width, 
+            height: normalized.height,
+            rotation: row.rotation,
+          }
+        });
+
+        if (!render) {
+          render = await MediaRender.create({
+            media_id: row.Media.id,
+            width: normalized.width,
+            height: normalized.height,
+            rotation: row.rotation,
+            status: 'pending'
+          });
+
+          await videoQueue.add('process-video', {
+            mediaId: row.Media.id,
+            renderId: render.id,
+            width: normalized.width,
+            height: normalized.height,
+            rotation: row.rotation
+          });
+
+          console.log(`[Playlist] Video ${row.Media.id} encolado para procesamiento (rot${row.rotation}°)`);
+        }
+
+        if (render.status === 'ready') {
+          playlistData.push({
+            ...baseItem,
+            url: render.url,
+          });
+          console.log(`[Playlist] Usando render optimizado para video ${row.Media.id}: ${render.url}`);
+        } else {
+          playlistData.push({
+            ...baseItem,
+            url: normalizeMediaUrl(row.Media.url),
+            processing: render.status === 'processing' || render.status === 'pending',
+          });
+          console.log(`[Playlist] Video ${row.Media.id} aún procesando (${render.status}), usando master temporalmente`);
+        }
+      } catch (error) {
+        console.error(`[Playlist] Error procesando video ${row.Media.id}:`, error);
+        playlistData.push({
+          ...baseItem,
+          url: normalizeMediaUrl(row.Media.url),
+        });
+      }
+    } else {
+      playlistData.push({
+        ...baseItem,
+        url: normalizeMediaUrl(row.Media.url),
+      });
+    }
+  }
 
   return {
     playlist: playlistData,

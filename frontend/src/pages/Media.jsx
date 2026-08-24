@@ -258,12 +258,59 @@ export default function MediaPage() {
   async function uploadFiles(files) {
     if (!files || files.length === 0) return;
 
+    const validFiles = [];
+    const rejectedFiles = [];
+
+    for (const file of Array.from(files)) {
+      if (file.type && file.type.startsWith('image/')) {
+        try {
+          const dimensions = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.onerror = () => reject(new Error('Error cargando imagen'));
+            img.src = URL.createObjectURL(file);
+          });
+
+          const minDimension = 1080;
+          const maxDimension = 1920;
+          const smallerSide = Math.min(dimensions.width, dimensions.height);
+          const largerSide = Math.max(dimensions.width, dimensions.height);
+
+          if (smallerSide < minDimension || largerSide < maxDimension) {
+            rejectedFiles.push({
+              name: file.name,
+              reason: `${dimensions.width}x${dimensions.height} (mínimo: 1920x1080)`
+            });
+            continue;
+          }
+
+          validFiles.push(file);
+        } catch {
+          rejectedFiles.push({
+            name: file.name,
+            reason: 'No se pudo validar la imagen'
+          });
+        }
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (rejectedFiles.length > 0) {
+      toast.error(
+        `${rejectedFiles.length} archivo(s) rechazado(s) por tamaño muy pequeño. ` +
+        `Mínimo requerido: 1920x1080 para pantallas digitales.`
+      );
+    }
+
+    if (validFiles.length === 0) return;
+
     const uploadCompanyId = getUploadCompanyId();
 
     setUploading(true);
     try {
       const formData = new FormData();
-      Array.from(files).forEach((f) => formData.append('files', f));
+      validFiles.forEach((f) => formData.append('files', f));
 
       if (uploadCompanyId) {
         formData.append('company_id', uploadCompanyId);
@@ -272,7 +319,7 @@ export default function MediaPage() {
       await api.post('/media/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      toast.success(`${files.length} archivo(s) subido(s)`);
+      toast.success(`${validFiles.length} archivo(s) subido(s)`);
       loadMedia();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error subiendo archivos');

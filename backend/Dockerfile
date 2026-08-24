@@ -2,8 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Instalar dependencias de compilación para sqlite3
-RUN apk add --no-cache python3 make g++
+# Instalar dependencias del sistema (incluyendo FFmpeg)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    ffmpeg
 
 COPY package*.json ./
 RUN npm ci --only=production

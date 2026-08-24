@@ -8,6 +8,8 @@ const Screen = sequelize.define('Screen', {
   status: { type: DataTypes.STRING, defaultValue: 'offline' },
   last_heartbeat: { type: DataTypes.DATE },
   current_apk_version: { type: DataTypes.INTEGER, defaultValue: 1 },
+  width: { type: DataTypes.INTEGER, defaultValue: 1920 },
+  height: { type: DataTypes.INTEGER, defaultValue: 1080 },
 }, {
   schema: 'digital_signage',
   tableName: 'Screens'

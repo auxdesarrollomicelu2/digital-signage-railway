@@ -15,6 +15,27 @@ function setupMQTT() {
   }
 }
 
+function setupMQTTPublisher() {
+  const useExternalBroker = process.env.USE_EXTERNAL_MQTT === 'true';
+  const brokerUrl = useExternalBroker
+    ? (process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883')
+    : `mqtt://localhost:${parseInt(process.env.MQTT_TCP_PORT || '1883')}`;
+
+  client = mqtt.connect(brokerUrl, {
+    clientId: `worker_${Date.now()}`,
+    clean: true,
+    reconnectPeriod: 5000,
+    connectTimeout: 30000,
+  });
+
+  client.on('connect', () => console.log(`[MQTT] Publicador conectado: ${brokerUrl}`));
+  client.on('error', (err) => console.error('[MQTT] Error del publicador:', err.message));
+  client.on('offline', () => console.warn('[MQTT] Publicador desconectado'));
+  client.on('reconnect', () => console.log('[MQTT] Publicador reconectando...'));
+
+  return client;
+}
+
 function setupExternalBroker() {
   const brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883';
   
@@ -124,9 +145,39 @@ async function handleHeartbeat(deviceId, payload = {}) {
       last_heartbeat: new Date() 
     };
     
-    // Si el player reporta su versión APK, guardarla
+    // DEBUG: Log del heartbeat recibido
+    console.log(`[MQTT] ❤️  Heartbeat de ${deviceId}:`, {
+      screen_width: payload.screen_width || 'N/A',
+      screen_height: payload.screen_height || 'N/A',
+      apk_version: payload.apk_version || 'N/A'
+    });
+    
     if (payload.apk_version && typeof payload.apk_version === 'number') {
       updateData.current_apk_version = payload.apk_version;
+    }
+    
+    if (payload.screen_width && payload.screen_height) {
+      const reportedWidth = parseInt(payload.screen_width, 10);
+      const reportedHeight = parseInt(payload.screen_height, 10);
+      
+      if (reportedWidth >= 1280 && reportedWidth <= 7680 &&
+          reportedHeight >= 720 && reportedHeight <= 4320) {
+        
+        const screen = await Screen.findOne({ where: { device_id: deviceId } });
+        
+        if (screen) {
+          const currentWidth = screen.width || 1920;
+          const currentHeight = screen.height || 1080;
+          const widthDiff = Math.abs(reportedWidth - currentWidth) / currentWidth;
+          const heightDiff = Math.abs(reportedHeight - currentHeight) / currentHeight;
+          
+          if (widthDiff > 0.05 || heightDiff > 0.05) {
+            updateData.width = reportedWidth;
+            updateData.height = reportedHeight;
+            console.log(`[MQTT] Resolución actualizada para ${deviceId}: ${reportedWidth}x${reportedHeight}`);
+          }
+        }
+      }
     }
     
     await Screen.update(updateData, { where: { device_id: deviceId } });
@@ -163,4 +214,8 @@ function publishCommand(deviceId, command) {
   }
 }
 
-module.exports = { setupMQTT, publishPlaylist, publishCommand };
+function getInternalClient() {
+  return client;
+}
+
+module.exports = { setupMQTT, setupMQTTPublisher, publishPlaylist, publishCommand, getInternalClient };
