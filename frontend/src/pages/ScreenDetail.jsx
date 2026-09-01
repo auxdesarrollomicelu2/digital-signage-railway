@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, MapPin, Globe, Copy, RotateCw, ListMusic, Image as ImageIcon, Video,
+  ArrowLeft, MapPin, Globe, Copy, RotateCw, RotateCcw, ListMusic, Image as ImageIcon, Video,
   PlayCircle, GripVertical, ChevronUp, ChevronDown, Trash2, X, ExternalLink, Zap,
 } from 'lucide-react';
 import api from '../api';
@@ -53,6 +53,8 @@ export default function ScreenDetail() {
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [processingRotations, setProcessingRotations] = useState(new Set());
+  const [pendingRotations, setPendingRotations] = useState(new Map());
   // Evita que el polling borre la playlist antes de guardar
   const playlistDirtyRef = useRef(false);
   const pickerFileInputRef = useRef(null);
@@ -86,6 +88,7 @@ export default function ScreenDetail() {
             mime_type: sm.Media.mime_type,
             duration: sm.duration,
             position: sm.position,
+            rotation: sm.rotation || 0, // Incluir rotation del backend
           }));
         setPlaylist(next);
       } else {
@@ -166,6 +169,7 @@ export default function ScreenDetail() {
       mime_type: media.mime_type,
       duration: 10,
       position: basePosition + idx,
+      rotation: 0, // Rotation por defecto 0°
     }));
     setPlaylist([...playlist, ...appended]);
     setSelectedMediaIds([]);
@@ -183,6 +187,134 @@ export default function ScreenDetail() {
     const updated = [...playlist];
     updated[index] = { ...updated[index], duration: Number.parseInt(duration, 10) || 10 };
     setPlaylist(updated);
+  }
+
+  function updateRotation(index, rotation) {
+    markPlaylistDirty();
+    const updated = [...playlist];
+    updated[index] = { ...updated[index], rotation: Number.parseInt(rotation, 10) || 0 };
+    setPlaylist(updated);
+  }
+
+  function rotateImage(index, direction) {
+    markPlaylistDirty();
+    const item = playlist[index];
+    
+    const updated = [...playlist];
+    const currentRotation = updated[index].rotation || 0;
+    let newRotation = currentRotation + (direction * 90);
+    
+    if (newRotation < 0) newRotation = 270;
+    if (newRotation >= 360) newRotation = 0;
+    
+    updated[index] = { ...updated[index], rotation: newRotation };
+    setPlaylist(updated);
+    
+    if (isVideoMedia(item)) {
+      setPendingRotations(prev => {
+        const next = new Map(prev);
+        const originalRotation = playlist.find((p, i) => i === index)?.rotation || 0;
+        if (newRotation !== originalRotation) {
+          next.set(index, { mediaId: item.media_id, rotation: newRotation, originalRotation });
+        } else {
+          next.delete(index);
+        }
+        return next;
+      });
+    }
+  }
+
+  async function applyPendingRotations() {
+    if (pendingRotations.size === 0) return;
+    
+    const rotationsArray = Array.from(pendingRotations.entries());
+    
+    for (const [index, { mediaId, rotation }] of rotationsArray) {
+      const rotationKey = `${mediaId}-${rotation}`;
+      setProcessingRotations(prev => new Set(prev).add(rotationKey));
+      
+      try {
+        await api.post(`/media/${mediaId}/rotate`, {
+          rotation,
+          width: screen.width || 1920,
+          height: screen.height || 1080
+        });
+        
+        pollRenderStatus(mediaId, rotation, rotationKey);
+      } catch (err) {
+        toast.error(`Error procesando rotación: ${err.response?.data?.error || err.message}`);
+        setProcessingRotations(prev => {
+          const next = new Set(prev);
+          next.delete(rotationKey);
+          return next;
+        });
+      }
+    }
+    
+    setPendingRotations(new Map());
+    toast.success(`${rotationsArray.length} video(s) encolado(s) para procesamiento`);
+  }
+
+  async function pollRenderStatus(mediaId, rotation, rotationKey) {
+    const maxAttempts = 60;
+    let attempts = 0;
+    
+    const checkStatus = async () => {
+      try {
+        attempts++;
+        const { data } = await api.get(`/media/${mediaId}/render-status`, {
+          params: {
+            rotation,
+            width: screen.width || 1920,
+            height: screen.height || 1080
+          }
+        });
+        
+        if (data.status === 'ready') {
+          setProcessingRotations(prev => {
+            const next = new Set(prev);
+            next.delete(rotationKey);
+            return next;
+          });
+          toast.success(`Video ${mediaId} procesado correctamente`);
+          return;
+        }
+        
+        if (data.status === 'failed') {
+          setProcessingRotations(prev => {
+            const next = new Set(prev);
+            next.delete(rotationKey);
+            return next;
+          });
+          toast.error(`Error procesando video ${mediaId}`);
+          return;
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 3000);
+        } else {
+          setProcessingRotations(prev => {
+            const next = new Set(prev);
+            next.delete(rotationKey);
+            return next;
+          });
+          toast.error(`Timeout procesando video ${mediaId}`);
+        }
+      } catch (err) {
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 3000);
+        } else {
+          setProcessingRotations(prev => {
+            const next = new Set(prev);
+            next.delete(rotationKey);
+            return next;
+          });
+          console.error(`Error verificando estado de render:`, err);
+        }
+      }
+    };
+    
+    setTimeout(checkStatus, 3000);
   }
 
   function moveItem(index, direction) {
@@ -235,7 +367,12 @@ export default function ScreenDetail() {
   }
 
   async function savePlaylist() {
-    const items = playlist.map((p, i) => ({ media_id: p.media_id, duration: p.duration, position: i }));
+    const items = playlist.map((p, i) => ({ 
+      media_id: p.media_id, 
+      duration: p.duration, 
+      position: i,
+      rotation: p.rotation || 0  // Incluir rotation (default 0)
+    }));
     const invalid = items.filter((it) => it.media_id == null || Number.isNaN(Number(it.media_id)));
     if (invalid.length > 0) {
       toast.error('Hay ítems sin ID de media. Quita y vuelve a agregar.');
@@ -452,11 +589,52 @@ export default function ScreenDetail() {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.primary, fontFamily: FD }}>Playlist</div>
               <div style={{ fontSize: 12, color: T.textSub, marginTop: 2 }}>{playlistQueueSubtitle(playlist.length)}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {processingRotations.size > 0 && (
+                <span style={{ 
+                  fontSize: 11, 
+                  color: T.primary, 
+                  background: T.primaryDim, 
+                  padding: '4px 10px', 
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <RotateCw size={11} className="animate-spin" />
+                  Procesando {processingRotations.size} video{processingRotations.size !== 1 ? 's' : ''}...
+                </span>
+              )}
+              {pendingRotations.size > 0 && (
+                <Btn 
+                  variant="secondary" 
+                  accentColor={T.primary}
+                  size="sm" 
+                  onClick={applyPendingRotations}
+                  disabled={processingRotations.size > 0}
+                  title="Aplicar cambios de rotación a los videos seleccionados"
+                >
+                  <RotateCw size={12} /> Aplicar rotación ({pendingRotations.size})
+                </Btn>
+              )}
               <Btn variant="secondary" size="sm" onClick={() => setShowMediaPicker(true)}>
                 <ImageIcon size={12} /> Agregar media
               </Btn>
-              <Btn variant="primary" accentColor={T.green} size="sm" onClick={savePlaylist}>
+              <Btn 
+                variant="primary" 
+                accentColor={T.green} 
+                size="sm" 
+                onClick={savePlaylist}
+                disabled={processingRotations.size > 0 || pendingRotations.size > 0}
+                title={
+                  processingRotations.size > 0 
+                    ? 'Espera a que terminen de procesarse los videos' 
+                    : pendingRotations.size > 0
+                    ? 'Aplica las rotaciones pendientes antes de guardar'
+                    : 'Guardar y publicar playlist'
+                }
+              >
                 <Zap size={12} /> Guardar y publicar
               </Btn>
             </div>
@@ -545,6 +723,96 @@ export default function ScreenDetail() {
                           <span style={{ fontSize: 10.5, color: T.textSub }}>seg</span>
                         </label>
                       )}
+                      {(() => {
+                        const rotationKey = `${item.media_id}-${item.rotation || 0}`;
+                        const isProcessing = processingRotations.has(rotationKey);
+                        const hasPendingChange = pendingRotations.has(index);
+                        const borderColor = isProcessing ? T.primary : hasPendingChange ? T.amber : T.border;
+                        const bgColor = isProcessing ? T.primaryDim : hasPendingChange ? T.amberDim : T.inputBg;
+                        
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderRadius: 7, border: `1px solid ${borderColor}`, background: bgColor, padding: '2px' }}>
+                            <button
+                              type="button"
+                              onClick={() => rotateImage(index, -1)}
+                              disabled={isProcessing}
+                              title={isProcessing ? 'Procesando...' : 'Rotar 90° a la izquierda'}
+                              aria-label="Rotar 90° a la izquierda"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: 'none',
+                                background: 'transparent',
+                                color: isProcessing ? T.primary : hasPendingChange ? T.amber : T.textSub,
+                                cursor: isProcessing ? 'wait' : 'pointer',
+                                padding: 6,
+                                borderRadius: 5,
+                                transition: 'all .15s ease',
+                                opacity: isProcessing ? 0.6 : 1
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isProcessing) {
+                                  e.currentTarget.style.color = T.primary;
+                                  e.currentTarget.style.background = T.primaryDim;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isProcessing) {
+                                  e.currentTarget.style.color = hasPendingChange ? T.amber : T.textSub;
+                                  e.currentTarget.style.background = 'transparent';
+                                }
+                              }}
+                            >
+                              {isProcessing ? <RotateCw size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                            </button>
+                            <span style={{
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              color: isProcessing ? T.primary : hasPendingChange ? T.amber : T.text,
+                              minWidth: 26,
+                              textAlign: 'center',
+                              userSelect: 'none'
+                            }}>
+                              {item.rotation || 0}°
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => rotateImage(index, 1)}
+                              disabled={isProcessing}
+                              title={isProcessing ? 'Procesando...' : 'Rotar 90° a la derecha'}
+                              aria-label="Rotar 90° a la derecha"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: 'none',
+                                background: 'transparent',
+                                color: isProcessing ? T.primary : hasPendingChange ? T.amber : T.textSub,
+                                cursor: isProcessing ? 'wait' : 'pointer',
+                                padding: 6,
+                                borderRadius: 5,
+                                transition: 'all .15s ease',
+                                opacity: isProcessing ? 0.6 : 1
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isProcessing) {
+                                  e.currentTarget.style.color = T.primary;
+                                  e.currentTarget.style.background = T.primaryDim;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isProcessing) {
+                                  e.currentTarget.style.color = hasPendingChange ? T.amber : T.textSub;
+                                  e.currentTarget.style.background = 'transparent';
+                                }
+                              }}
+                            >
+                              <RotateCw size={14} />
+                            </button>
+                          </div>
+                        );
+                      })()}
                       <button
                         type="button"
                         onClick={() => removeFromPlaylist(index)}

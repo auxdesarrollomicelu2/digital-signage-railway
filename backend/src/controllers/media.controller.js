@@ -1,5 +1,6 @@
 const { logAudit } = require('../utils/audit');
 const mediaService = require('../services/media.service');
+const videoRenderService = require('../services/video-render.service');
 
 const listMedia = async (req, res) => {
   try {
@@ -136,10 +137,91 @@ const getMediaStats = async (req, res) => {
   }
 };
 
+const rotateMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rotation, width, height } = req.body;
+    
+    if (![0, 90, 180, 270].includes(Number(rotation))) {
+      return res.status(400).json({ error: 'Rotación inválida. Debe ser 0, 90, 180 o 270' });
+    }
+    
+    if (!width || !height) {
+      return res.status(400).json({ error: 'Se requieren width y height' });
+    }
+    
+    const media = await mediaService.getMediaById(id, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+    
+    if (!media) {
+      return res.status(404).json({ error: 'Media no encontrado' });
+    }
+    
+    const isVideo = media.mime_type?.startsWith('video/');
+    if (!isVideo) {
+      return res.status(400).json({ error: 'Solo se pueden rotar videos' });
+    }
+    
+    await videoRenderService.queueVideoRender({
+      mediaId: Number(id),
+      width: Number(width),
+      height: Number(height),
+      rotation: Number(rotation),
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Video encolado para procesamiento',
+      mediaId: Number(id),
+      rotation: Number(rotation),
+      resolution: `${width}x${height}`
+    });
+  } catch (err) {
+    console.error('Error al rotar media:', err);
+    const statusCode = err.message.includes('no encontrado') ? 404 :
+                       err.message.includes('permiso') ? 403 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
+const getRenderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rotation, width, height } = req.query;
+    
+    const media = await mediaService.getMediaById(id, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+    
+    if (!media) {
+      return res.status(404).json({ error: 'Media no encontrado' });
+    }
+    
+    const status = await videoRenderService.getRenderStatus({
+      mediaId: Number(id),
+      width: Number(width),
+      height: Number(height),
+      rotation: Number(rotation),
+    });
+    
+    res.json(status);
+  } catch (err) {
+    console.error('Error al consultar estado de render:', err);
+    const statusCode = err.message.includes('no encontrado') ? 404 :
+                       err.message.includes('permiso') ? 403 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listMedia,
   getMedia,
   uploadMedia,
   deleteMedia,
   getMediaStats,
+  rotateMedia,
+  getRenderStatus,
 };

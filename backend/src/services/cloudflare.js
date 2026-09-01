@@ -158,8 +158,44 @@ const isR2Configured = () => {
   );
 };
 
+/**
+ * Subir buffer en memoria a Cloudflare R2 (para renders procesados)
+ * Usado por Sharp para subir imágenes optimizadas directamente desde memoria
+ * 
+ * @param {Buffer} buffer - Buffer del archivo en memoria
+ * @param {string} key - Key completo en R2 (ej: renders/img-10-1920x1080-r90.jpg)
+ * @param {string} contentType - MIME type del archivo (ej: image/jpeg)
+ * @returns {Promise<string>} - Key del archivo en R2
+ */
+const uploadBufferToR2 = async (buffer, key, contentType) => {
+  try {
+    if (!isR2Configured()) {
+      throw new Error('Cloudflare R2 no está configurado');
+    }
+
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: BUCKET_NAME,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      },
+    });
+
+    await upload.done();
+    const sizeKB = (buffer.length / 1024).toFixed(2);
+    console.log(`✅ [R2 Buffer] Subido: ${key} (${sizeKB} KB)`);
+    return key;
+  } catch (error) {
+    console.error(`❌ [R2 Buffer] Error al subir ${key}:`, error);
+    throw new Error(`Error al subir buffer a R2: ${error.message}`);
+  }
+};
+
 module.exports = {
   uploadToR2,
+  uploadBufferToR2,
   deleteFromR2,
   getPublicUrl,
   isR2Configured,

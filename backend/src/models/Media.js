@@ -8,6 +8,9 @@ const Media = sequelize.define('Media', {
   cloudflare_key: { type: DataTypes.STRING },
   mime_type: { type: DataTypes.STRING },
   size: { type: DataTypes.BIGINT },
+  width: { type: DataTypes.INTEGER },
+  height: { type: DataTypes.INTEGER },
+  duration: { type: DataTypes.DOUBLE },
   company_id: { 
     type: DataTypes.INTEGER, 
     allowNull: false,

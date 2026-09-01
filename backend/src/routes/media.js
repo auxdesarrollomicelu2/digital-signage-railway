@@ -10,6 +10,8 @@ const {
   uploadMedia,
   deleteMedia,
   getMediaStats,
+  rotateMedia,
+  getRenderStatus,
 } = require('../controllers/media.controller');
 
 const uploadDir = path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || './uploads');
@@ -235,6 +237,104 @@ router.get('/:id', getMedia);
  *         description: No se subieron archivos o formato inválido
  */
 router.post('/upload', upload.array('files', 20), uploadMedia);
+
+/**
+ * @swagger
+ * /api/media/{id}/rotate:
+ *   post:
+ *     summary: Encolar procesamiento de rotación de video
+ *     description: Encola un job de BullMQ para procesar el video con la rotación especificada
+ *     tags: [Media]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del video
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rotation
+ *               - width
+ *               - height
+ *             properties:
+ *               rotation:
+ *                 type: integer
+ *                 enum: [0, 90, 180, 270]
+ *                 example: 90
+ *               width:
+ *                 type: integer
+ *                 example: 1920
+ *               height:
+ *                 type: integer
+ *                 example: 1080
+ *     responses:
+ *       200:
+ *         description: Video encolado para procesamiento
+ *       400:
+ *         description: Solo se pueden rotar videos
+ *       404:
+ *         description: Media no encontrado
+ */
+router.post('/:id/rotate', rotateMedia);
+
+/**
+ * @swagger
+ * /api/media/{id}/render-status:
+ *   get:
+ *     summary: Consultar estado de procesamiento de un render
+ *     description: Devuelve el estado actual de un MediaRender específico
+ *     tags: [Media]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del media
+ *       - in: query
+ *         name: rotation
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           enum: [0, 90, 180, 270]
+ *       - in: query
+ *         name: width
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: height
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Estado del render
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [pending, processing, ready, failed]
+ *                 url:
+ *                   type: string
+ *                   nullable: true
+ *       404:
+ *         description: Render no encontrado
+ */
+router.get('/:id/render-status', getRenderStatus);
 
 /**
  * @swagger
