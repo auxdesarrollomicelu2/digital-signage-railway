@@ -790,6 +790,7 @@ const styles = {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+    background: '#000',
   },
   downloadBadge: {
     position: 'absolute',
