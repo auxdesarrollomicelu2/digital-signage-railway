@@ -210,26 +210,63 @@ export default function ScreenDetail() {
     updated[index] = { ...updated[index], rotation: newRotation };
     setPlaylist(updated);
     
-    if (isVideoMedia(item)) {
-      setPendingRotations(prev => {
-        const next = new Map(prev);
-        const originalRotation = playlist.find((p, i) => i === index)?.rotation || 0;
-        if (newRotation !== originalRotation) {
-          next.set(index, { mediaId: item.media_id, rotation: newRotation, originalRotation });
-        } else {
-          next.delete(index);
-        }
-        return next;
-      });
-    }
+    // Agregar a pendingRotations para TODOS los tipos de media (videos e imágenes)
+    setPendingRotations(prev => {
+      const next = new Map(prev);
+      const originalRotation = playlist.find((p, i) => i === index)?.rotation || 0;
+      if (newRotation !== originalRotation) {
+        next.set(index, { 
+          mediaId: item.media_id, 
+          rotation: newRotation, 
+          originalRotation,
+          isVideo: isVideoMedia(item) 
+        });
+      } else {
+        next.delete(index);
+      }
+      return next;
+    });
   }
 
   async function applyPendingRotations() {
     if (pendingRotations.size === 0) return;
     
     const rotationsArray = Array.from(pendingRotations.entries());
+    const videos = rotationsArray.filter(([, data]) => data.isVideo);
+    const images = rotationsArray.filter(([, data]) => !data.isVideo);
     
-    for (const [index, { mediaId, rotation }] of rotationsArray) {
+    // Procesar imágenes (Sharp - instantáneo, no usa cola)
+    for (const [index, { mediaId, rotation }] of images) {
+      const rotationKey = `${mediaId}-${rotation}`;
+      setProcessingRotations(prev => new Set(prev).add(rotationKey));
+      
+      try {
+        await api.post(`/media/${mediaId}/rotate`, {
+          rotation,
+          width: screen.width || 1920,
+          height: screen.height || 1080
+        });
+        
+        // Imágenes se procesan inmediatamente con Sharp
+        setProcessingRotations(prev => {
+          const next = new Set(prev);
+          next.delete(rotationKey);
+          return next;
+        });
+        
+        toast.success(`Imagen ${mediaId} rotada correctamente`);
+      } catch (err) {
+        toast.error(`Error rotando imagen: ${err.response?.data?.error || err.message}`);
+        setProcessingRotations(prev => {
+          const next = new Set(prev);
+          next.delete(rotationKey);
+          return next;
+        });
+      }
+    }
+    
+    // Procesar videos (FFmpeg - usa cola con polling)
+    for (const [index, { mediaId, rotation }] of videos) {
       const rotationKey = `${mediaId}-${rotation}`;
       setProcessingRotations(prev => new Set(prev).add(rotationKey));
       
@@ -252,7 +289,14 @@ export default function ScreenDetail() {
     }
     
     setPendingRotations(new Map());
-    toast.success(`${rotationsArray.length} video(s) encolado(s) para procesamiento`);
+    
+    if (images.length > 0 && videos.length > 0) {
+      toast.success(`${images.length} imagen(es) rotada(s), ${videos.length} video(s) encolado(s)`);
+    } else if (images.length > 0) {
+      toast.success(`${images.length} imagen(es) rotada(s) correctamente`);
+    } else if (videos.length > 0) {
+      toast.success(`${videos.length} video(s) encolado(s) para procesamiento`);
+    }
   }
 
   async function pollRenderStatus(mediaId, rotation, rotationKey) {
@@ -603,7 +647,7 @@ export default function ScreenDetail() {
                   gap: 6
                 }}>
                   <RotateCw size={11} className="animate-spin" />
-                  Procesando {processingRotations.size} video{processingRotations.size !== 1 ? 's' : ''}...
+                  Procesando {processingRotations.size} elemento{processingRotations.size !== 1 ? 's' : ''}...
                 </span>
               )}
               {pendingRotations.size > 0 && (

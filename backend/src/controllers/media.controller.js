@@ -160,24 +160,49 @@ const rotateMedia = async (req, res) => {
     }
     
     const isVideo = media.mime_type?.startsWith('video/');
-    if (!isVideo) {
-      return res.status(400).json({ error: 'Solo se pueden rotar videos' });
+    const isImage = media.mime_type?.startsWith('image/');
+    
+    if (!isVideo && !isImage) {
+      return res.status(400).json({ error: 'Solo se pueden rotar imágenes y videos' });
     }
     
-    await videoRenderService.queueVideoRender({
-      mediaId: Number(id),
-      width: Number(width),
-      height: Number(height),
-      rotation: Number(rotation),
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Video encolado para procesamiento',
-      mediaId: Number(id),
-      rotation: Number(rotation),
-      resolution: `${width}x${height}`
-    });
+    if (isVideo) {
+      // Videos: encolar para procesamiento con FFmpeg
+      await videoRenderService.queueVideoRender({
+        mediaId: Number(id),
+        width: Number(width),
+        height: Number(height),
+        rotation: Number(rotation),
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Video encolado para procesamiento',
+        mediaId: Number(id),
+        rotation: Number(rotation),
+        resolution: `${width}x${height}`,
+        type: 'video'
+      });
+    } else if (isImage) {
+      // Imágenes: procesar inmediatamente con Sharp
+      const imageRenderService = require('../services/image-render.service');
+      const render = await imageRenderService.getOrCreateImageRender(
+        Number(id),
+        Number(width),
+        Number(height),
+        Number(rotation)
+      );
+      
+      res.json({ 
+        success: true, 
+        message: 'Imagen rotada correctamente',
+        mediaId: Number(id),
+        rotation: Number(rotation),
+        resolution: `${width}x${height}`,
+        url: render.url,
+        type: 'image'
+      });
+    }
   } catch (err) {
     console.error('Error al rotar media:', err);
     const statusCode = err.message.includes('no encontrado') ? 404 :
