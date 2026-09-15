@@ -34,7 +34,9 @@ const VIDEO_EXT = new Set([
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: { 
+    fileSize: 100 * 1024 * 1024, // 100MB - suficiente para videos cortos en 1080p
+  },
   fileFilter: (_req, file, cb) => {
     const mime = String(file.mimetype || '').toLowerCase();
     if (mime.startsWith('image/')) {
@@ -192,7 +194,7 @@ router.get('/:id', getMedia);
  *       - **Owner**: Sube archivos para su propia empresa
  *       - **Super Admin**: Debe especificar company_id
  *       - Formatos: JPG, PNG, GIF, WEBP, MP4, WEBM, MOV, etc.
- *       - Tamaño máximo: 50MB por archivo
+ *       - Tamaño máximo: 100MB por archivo
  *     tags: [Media]
  *     security:
  *       - BearerAuth: []

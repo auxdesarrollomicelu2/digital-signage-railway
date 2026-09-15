@@ -21,6 +21,14 @@ function setupMQTTPublisher() {
     ? (process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883')
     : `mqtt://localhost:${parseInt(process.env.MQTT_TCP_PORT || '1883')}`;
 
+  // Logs de debugging
+  console.log('[MQTT] 🔍 Configuración del publicador:', {
+    useExternalBroker,
+    brokerUrl,
+    USE_EXTERNAL_MQTT: process.env.USE_EXTERNAL_MQTT,
+    MQTT_BROKER_URL: process.env.MQTT_BROKER_URL,
+  });
+
   client = mqtt.connect(brokerUrl, {
     clientId: `worker_${Date.now()}`,
     clean: true,
@@ -28,10 +36,13 @@ function setupMQTTPublisher() {
     connectTimeout: 30000,
   });
 
-  client.on('connect', () => console.log(`[MQTT] Publicador conectado: ${brokerUrl}`));
-  client.on('error', (err) => console.error('[MQTT] Error del publicador:', err.message));
-  client.on('offline', () => console.warn('[MQTT] Publicador desconectado'));
-  client.on('reconnect', () => console.log('[MQTT] Publicador reconectando...'));
+  client.on('connect', () => console.log(`[MQTT] ✅ Publicador conectado: ${brokerUrl}`));
+  client.on('error', (err) => {
+    console.error('[MQTT] ❌ Error del publicador:', err.message);
+    console.error('[MQTT] Tipo de error:', err.code || 'desconocido');
+  });
+  client.on('offline', () => console.warn('[MQTT] ⚠️  Publicador desconectado'));
+  client.on('reconnect', () => console.log('[MQTT] 🔄 Publicador reconectando...'));
 
   return client;
 }
