@@ -68,7 +68,7 @@ function QuickAction({ icon: Icon, label, color, strongWhite = false, onClick, T
 // forwardRef: AnimatePresence (mode="popLayout") necesita adjuntar un ref al
 // elemento saliente para medirlo al animar la salida — sin esto React tira
 // el warning "Function components cannot be given refs".
-const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete, onRename, T, delay = 0 }, ref) {
+const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete, onRename, T, delay = 0, selectionMode = false, isSelected = false, onToggleSelect }, ref) {
   const [hov, setHov] = useState(false);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState(item.original_name);
@@ -92,6 +92,14 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
     if (trimmed && trimmed !== item.original_name) onRename(item, trimmed);
   }
 
+  function handleCardClick() {
+    if (selectionMode) {
+      onToggleSelect(item.id);
+    } else {
+      onView(item);
+    }
+  }
+
   return (
     <motion.div
       ref={ref}
@@ -105,15 +113,17 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
       onMouseLeave={() => setHov(false)}
       className="card"
       style={{
-        borderRadius: 16, overflow: 'hidden', cursor: 'pointer',
-        border: `1px solid ${hov ? accent + '44' : T.border}`,
-        boxShadow: hov ? `0 20px 40px -18px ${accent}38, 0 0 0 1px ${accent}22` : T.cardShadow,
+        borderRadius: 16, overflow: 'hidden', cursor: selectionMode ? 'pointer' : 'default',
+        border: `1px solid ${isSelected ? T.primary : (hov ? accent + '44' : T.border)}`,
+        boxShadow: isSelected 
+          ? `0 0 0 2px ${T.primary}44, 0 8px 24px -8px ${T.primary}66`
+          : (hov ? `0 20px 40px -18px ${accent}38, 0 0 0 1px ${accent}22` : T.cardShadow),
         transition: 'border-color .25s ease, box-shadow .25s ease',
       }}
     >
       <div
-        onClick={() => onView(item)}
-        style={{ aspectRatio: '4/3', position: 'relative', overflow: 'hidden', background: `linear-gradient(145deg,${accent}12,${accent}06)`, cursor: 'zoom-in' }}
+        onClick={handleCardClick}
+        style={{ aspectRatio: '4/3', position: 'relative', overflow: 'hidden', background: `linear-gradient(145deg,${accent}12,${accent}06)`, cursor: selectionMode ? 'pointer' : 'zoom-in' }}
       >
         {video ? (
           <video src={item.url} className="h-full w-full object-cover" muted preload="metadata" playsInline />
@@ -126,25 +136,57 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
 
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 26%, transparent 68%, rgba(0,0,0,.55) 100%)', pointerEvents: 'none' }} />
 
-        <div style={{ position: 'absolute', top: 9, left: 9 }}>
-          <FloatingWidget icon={video ? Video : ImageIcon} label={video ? 'Video' : 'Imagen'} color={accent} />
-        </div>
+        {/* Checkbox de selección en modo selección */}
+        {selectionMode ? (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect(item.id);
+            }}
+            style={{
+              position: 'absolute',
+              top: 9,
+              left: 9,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
+              background: isSelected ? T.primary : 'rgba(10,13,18,.65)',
+              backdropFilter: 'blur(10px)',
+              border: `2px solid ${isSelected ? T.primary : 'rgba(255,255,255,.4)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all .2s ease',
+              transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+            }}
+          >
+            {isSelected && <Check size={16} color="#fff" strokeWidth={3} />}
+          </div>
+        ) : (
+          <div style={{ position: 'absolute', top: 9, left: 9 }}>
+            <FloatingWidget icon={video ? Video : ImageIcon} label={video ? 'Video' : 'Imagen'} color={accent} />
+          </div>
+        )}
+
         <div style={{ position: 'absolute', bottom: 9, left: 9 }}>
           <FloatingWidget icon={HardDrive} label={formatSize(item.size)} color={T.primary} />
         </div>
 
-        <motion.div
-          initial={false}
-          animate={{ opacity: hov ? 1 : 0, y: hov ? 0 : 6 }}
-          transition={{ duration: 0.2, ease: EASE }}
-          style={{ position: 'absolute', top: 9, right: 9, display: 'flex', gap: 6 }}
-        >
-          <QuickAction icon={Eye} label="Ver" color={T.primary} strongWhite T={T} onClick={(e) => { e.stopPropagation(); onView(item); }} />
-          <QuickAction icon={Pencil} label="Editar" color={T.blue} T={T} onClick={(e) => { e.stopPropagation(); onEdit(item); }} />
-          <QuickAction icon={Trash2} label="Eliminar" color={T.red} T={T} onClick={(e) => { e.stopPropagation(); onDelete(item); }} />
-        </motion.div>
+        {!selectionMode && (
+          <motion.div
+            initial={false}
+            animate={{ opacity: hov ? 1 : 0, y: hov ? 0 : 6 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            style={{ position: 'absolute', top: 9, right: 9, display: 'flex', gap: 6 }}
+          >
+            <QuickAction icon={Eye} label="Ver" color={T.primary} strongWhite T={T} onClick={(e) => { e.stopPropagation(); onView(item); }} />
+            <QuickAction icon={Pencil} label="Editar" color={T.blue} T={T} onClick={(e) => { e.stopPropagation(); onEdit(item); }} />
+            <QuickAction icon={Trash2} label="Eliminar" color={T.red} T={T} onClick={(e) => { e.stopPropagation(); onDelete(item); }} />
+          </motion.div>
+        )}
 
-        {video && (
+        {video && !selectionMode && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <motion.span
               animate={{ scale: hov ? 1.08 : 1, opacity: hov ? 1 : 0.85 }}
@@ -157,8 +199,8 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
         )}
       </div>
 
-      <div onClick={() => onEdit(item)} style={{ padding: '11px 13px' }}>
-        {editing ? (
+      <div onClick={() => !selectionMode && onEdit(item)} style={{ padding: '11px 13px' }}>
+        {editing && !selectionMode ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
             <input
               ref={inputRef}
@@ -175,9 +217,9 @@ const MediaCard = forwardRef(function MediaCard({ item, onView, onEdit, onDelete
         ) : (
           <p
             onClick={(e) => e.stopPropagation()}
-            onDoubleClick={startEdit}
-            title={`${item.original_name} — doble clic para renombrar`}
-            style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'text' }}
+            onDoubleClick={!selectionMode ? startEdit : undefined}
+            title={`${item.original_name}${!selectionMode ? ' — doble clic para renombrar' : ''}`}
+            style={{ fontSize: 12, fontWeight: 600, color: T.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: selectionMode ? 'pointer' : 'text' }}
           >
             {item.original_name}
           </p>
@@ -198,6 +240,10 @@ export default function MediaPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef(null);
+  
+  // Estados para selección múltiple
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const {
     selectedCompanyId,
@@ -316,10 +362,28 @@ export default function MediaPage() {
         formData.append('company_id', uploadCompanyId);
       }
 
-      await api.post('/media/upload', formData, {
+      const response = await api.post('/media/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      toast.success(`${validFiles.length} archivo(s) subido(s)`);
+      
+      // Mostrar warnings si existen
+      if (response.data.warnings && response.data.warnings.length > 0) {
+        response.data.warnings.forEach(warning => {
+          if (warning.error) {
+            toast.error(`${warning.filename}: ${warning.error}`, { duration: 6000 });
+          } else if (warning.warning) {
+            toast(warning.warning, { icon: '⚠️', duration: 5000 });
+          }
+        });
+      }
+      
+      // Solo mostrar success si realmente se subieron archivos
+      if (response.data.media && response.data.media.length > 0) {
+        toast.success(`${response.data.media.length} archivo(s) subido(s)`);
+      } else if (!response.data.warnings || response.data.warnings.length === 0) {
+        toast.error('No se pudo subir ningún archivo');
+      }
+      
       loadMedia();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error subiendo archivos');
@@ -372,6 +436,76 @@ export default function MediaPage() {
     if (idx >= 0) setViewerIndex(idx);
   }
 
+  function toggleSelectionMode() {
+    setSelectionMode(!selectionMode);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelection(id) {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(media.map((m) => m.id)));
+  }
+
+  function deselectAll() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+
+    const count = selectedIds.size;
+    if (!window.confirm(`¿Eliminar ${count} archivo(s)? Esta acción es permanente e irreversible.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await api.post('/media/bulk-delete', {
+        ids: Array.from(selectedIds),
+      });
+
+      const { deleted, inUse, failed, summary } = response.data;
+
+      // Mensajes informativos detallados
+      if (deleted.length > 0) {
+        toast.success(`${deleted.length} archivo(s) eliminado(s) correctamente`);
+      }
+
+      if (inUse.length > 0) {
+        const names = inUse.slice(0, 3).map(f => f.name).join(', ');
+        const extra = inUse.length > 3 ? ` y ${inUse.length - 3} más` : '';
+        toast.error(
+          `${inUse.length} archivo(s) no se pudieron eliminar porque están en uso en playlists: ${names}${extra}`,
+          { duration: 8000 }
+        );
+      }
+
+      if (failed.length > 0) {
+        toast.error(`${failed.length} archivo(s) fallaron al eliminar. Revisa los permisos.`, { duration: 6000 });
+      }
+
+      // Limpiar selección y recargar
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      loadMedia();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error eliminando archivos');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="enter" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
@@ -393,7 +527,7 @@ export default function MediaPage() {
           onChange={handleFilterChange}
           style={{ flex: '0 1 auto' }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexWrap: 'wrap' }}>
           <FilterSearchInput
             value={searchTerm}
             onChange={setSearchTerm}
@@ -403,6 +537,143 @@ export default function MediaPage() {
           <span style={{ fontSize: 11.5, color: T.textSub, whiteSpace: 'nowrap' }}>
             {media.length} resultado{media.length !== 1 ? 's' : ''}
           </span>
+          {/* Botón de modo selección o barra de acciones inline */}
+          {!selectionMode ? (
+            <button
+              onClick={toggleSelectionMode}
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: T.text,
+                background: T.surface,
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                cursor: 'pointer',
+                transition: 'all .2s ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = T.primary;
+                e.currentTarget.style.color = T.primary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = T.border;
+                e.currentTarget.style.color = T.text;
+              }}
+            >
+              Seleccionar
+            </button>
+          ) : (
+            /* Barra compacta inline cuando está en modo selección */
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 8,
+              padding: '4px 10px',
+              background: T.primaryDim,
+              border: `1px solid ${T.primary}44`,
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+            }}>
+              <span style={{ color: T.text, whiteSpace: 'nowrap' }}>
+                {selectedIds.size} sel.
+              </span>
+              <button
+                onClick={selectAll}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.text,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'color .2s ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = T.primary}
+                onMouseLeave={(e) => e.currentTarget.style.color = T.text}
+              >
+                Todo
+              </button>
+              <button
+                onClick={deselectAll}
+                disabled={selectedIds.size === 0}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.text,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer',
+                  opacity: selectedIds.size === 0 ? 0.5 : 1,
+                  transition: 'color .2s ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedIds.size > 0) e.currentTarget.style.color = T.primary;
+                }}
+                onMouseLeave={(e) => e.currentTarget.style.color = T.text}
+              >
+                Ninguno
+              </button>
+              <div style={{ width: 1, height: 16, background: T.border }} />
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedIds.size === 0 || deleting}
+                title={`Eliminar ${selectedIds.size} archivo(s)`}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: selectedIds.size === 0 ? T.textSub : T.red,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: selectedIds.size === 0 || deleting ? 'not-allowed' : 'pointer',
+                  opacity: selectedIds.size === 0 || deleting ? 0.5 : 1,
+                  transition: 'color .2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedIds.size > 0) e.currentTarget.style.color = '#ff4444';
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedIds.size > 0) e.currentTarget.style.color = T.red;
+                }}
+              >
+                <Trash2 size={12} />
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+              <div style={{ width: 1, height: 16, background: T.border }} />
+              <button
+                onClick={toggleSelectionMode}
+                title="Cancelar modo selección"
+                style={{
+                  width: 20,
+                  height: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: T.textSub,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'color .2s ease',
+                  fontSize: 14,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = T.red}
+                onMouseLeave={(e) => e.currentTarget.style.color = T.textSub}
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </FilterBarRow>
 
@@ -439,7 +710,7 @@ export default function MediaPage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
             <UploadCloud size={22} color={T.primary} strokeWidth={1.5} />
             <p style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Arrastra archivos aquí o haz clic para seleccionar</p>
-            <p style={{ fontSize: 11.5, color: T.textSub }}>Imágenes y videos (MOV, MP4, WEBM…), máx. 50 MB</p>
+            <p style={{ fontSize: 11.5, color: T.textSub }}>Imágenes y videos (MOV, MP4, WEBM…), máx. 100 MB y 4 min 10 seg</p>
           </div>
         )}
       </div>
@@ -461,6 +732,9 @@ export default function MediaPage() {
                 onRename={handleRename}
                 T={T}
                 delay={Math.min(i, 10) * 0.03}
+                selectionMode={selectionMode}
+                isSelected={selectedIds.has(item.id)}
+                onToggleSelect={toggleSelection}
               />
             ))}
           </AnimatePresence>

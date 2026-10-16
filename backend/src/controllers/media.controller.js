@@ -241,6 +241,42 @@ const getRenderStatus = async (req, res) => {
   }
 };
 
+const bulkDeleteMedia = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de IDs' });
+    }
+
+    const result = await mediaService.bulkDeleteMediaFiles(ids, {
+      role: req.user.role,
+      companyId: req.user.companyId,
+    });
+
+    // Auditar cada eliminación exitosa
+    for (const deleted of result.deleted) {
+      await logAudit({
+        userId: req.user.companyId,
+        userName: req.user.username,
+        action: 'delete',
+        resourceType: 'Media',
+        resourceId: deleted.id,
+        resourceName: deleted.name,
+        oldValues: { id: deleted.id, name: deleted.name },
+        newValues: null,
+        companyId: req.user.companyId,
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error en bulk delete:', err);
+    const statusCode = err.message.includes('array de IDs') || err.message.includes('Máximo') ? 400 : 500;
+    res.status(statusCode).json({ error: err.message });
+  }
+};
+
 module.exports = {
   listMedia,
   getMedia,
@@ -249,4 +285,5 @@ module.exports = {
   getMediaStats,
   rotateMedia,
   getRenderStatus,
+  bulkDeleteMedia,
 };

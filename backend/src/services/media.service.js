@@ -162,12 +162,18 @@ const uploadMediaFiles = async (files, uploadData, userPermissions) => {
         try {
           const metadata = await detectVideoMetadata(buffer);
           
-          const maxDuration = 120;
+          const maxDuration = 250; // 4 minutos y 10 segundos
+          const maxDurationMinutes = Math.floor(maxDuration / 60);
+          const maxDurationSeconds = maxDuration % 60;
+          const durationText = maxDurationSeconds > 0 
+            ? `${maxDurationMinutes} minutos y ${maxDurationSeconds} segundos`
+            : `${maxDurationMinutes} minutos`;
+          
           if (metadata.duration > maxDuration) {
             fs.unlinkSync(filePath);
             uploadErrors.push({
               filename: file.originalname,
-              error: `Video muy largo: ${metadata.duration.toFixed(1)}s (máximo ${maxDuration}s = 2 minutos)`,
+              error: `Video muy largo: ${metadata.duration.toFixed(1)}s (máximo ${durationText})`,
             });
             continue;
           }
@@ -431,10 +437,91 @@ const getMediaStatistics = async (filters, userPermissions) => {
   };
 };
 
+const bulkDeleteMediaFiles = async (mediaIds, userPermissions) => {
+  const { role, companyId } = userPermissions;
+
+  if (!Array.isArray(mediaIds) || mediaIds.length === 0) {
+    throw new Error('Se requiere un array de IDs válido');
+  }
+
+  // Límite de seguridad: máximo 100 archivos por batch
+  if (mediaIds.length > 100) {
+    throw new Error('Máximo 100 archivos por operación');
+  }
+
+  const results = {
+    deleted: [],
+    failed: [],
+    inUse: [],
+  };
+
+  for (const mediaId of mediaIds) {
+    try {
+      const media = await Media.findByPk(mediaId);
+
+      if (!media) {
+        results.failed.push({
+          id: mediaId,
+          reason: 'Archivo no encontrado',
+        });
+        continue;
+      }
+
+      if (role !== 'super_admin' && media.company_id !== companyId) {
+        results.failed.push({
+          id: mediaId,
+          name: media.original_name,
+          reason: 'Sin permiso para eliminar este archivo',
+        });
+        continue;
+      }
+
+      const inUse = await ScreenMedia.count({
+        where: { media_id: mediaId },
+      });
+
+      if (inUse > 0) {
+        results.inUse.push({
+          id: mediaId,
+          name: media.original_name,
+          playlistCount: inUse,
+        });
+        continue;
+      }
+
+      // Reutilizar la lógica de eliminación existente
+      const deleteResult = await deleteMediaFile(mediaId, userPermissions);
+      results.deleted.push({
+        id: mediaId,
+        name: deleteResult.mediaData.original_name,
+      });
+    } catch (err) {
+      results.failed.push({
+        id: mediaId,
+        reason: err.message,
+      });
+    }
+  }
+
+  return {
+    success: true,
+    deleted: results.deleted,
+    inUse: results.inUse,
+    failed: results.failed,
+    summary: {
+      total: mediaIds.length,
+      deletedCount: results.deleted.length,
+      inUseCount: results.inUse.length,
+      failedCount: results.failed.length,
+    },
+  };
+};
+
 module.exports = {
   listMedia,
   getMediaById,
   uploadMediaFiles,
   deleteMediaFile,
+  bulkDeleteMediaFiles,
   getMediaStatistics,
 };

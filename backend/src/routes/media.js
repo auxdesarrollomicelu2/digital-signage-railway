@@ -12,6 +12,7 @@ const {
   getMediaStats,
   rotateMedia,
   getRenderStatus,
+  bulkDeleteMedia,
 } = require('../controllers/media.controller');
 
 const uploadDir = path.resolve(__dirname, '../../', process.env.UPLOAD_DIR || './uploads');
@@ -239,6 +240,92 @@ router.get('/:id', getMedia);
  *         description: No se subieron archivos o formato inválido
  */
 router.post('/upload', upload.array('files', 20), uploadMedia);
+
+/**
+ * @swagger
+ * /api/media/bulk-delete:
+ *   post:
+ *     summary: Eliminar múltiples archivos
+ *     description: |
+ *       Elimina varios archivos de media en una sola operación.
+ *       - Máximo 100 archivos por operación
+ *       - No elimina archivos en uso en playlists
+ *       - Solo puede eliminar archivos de su empresa (o todos si es super admin)
+ *     tags: [Media]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - ids
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: Array de IDs de archivos a eliminar
+ *                 example: [1, 2, 3, 4, 5]
+ *     responses:
+ *       200:
+ *         description: Resultado de la eliminación masiva
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 deleted:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                 inUse:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       playlistCount:
+ *                         type: integer
+ *                 failed:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       reason:
+ *                         type: string
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     deletedCount:
+ *                       type: integer
+ *                     inUseCount:
+ *                       type: integer
+ *                     failedCount:
+ *                       type: integer
+ *       400:
+ *         description: Datos inválidos
+ */
+router.post('/bulk-delete', bulkDeleteMedia);
 
 /**
  * @swagger
